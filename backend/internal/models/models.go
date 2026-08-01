@@ -38,7 +38,7 @@ type Station struct {
 // TotalSeats is stored for quick reference (avoids counting seats every time).
 type Coach struct {
 	ID         uint      `gorm:"primaryKey;autoIncrement" json:"id"`
-	Name       string    `gorm:"size:10;not null;uniqueIndex" json:"name"`
+	Name       string    `gorm:"size:10;not null" json:"name"`
 	Type       CoachType `gorm:"size:20;not null" json:"type"`
 	TotalSeats int       `gorm:"not null;default:0" json:"total_seats"`
 	CreatedAt  time.Time `json:"created_at"`
@@ -51,8 +51,8 @@ type Coach struct {
 // Unreserved coaches have no seat records — they are first-come-first-served.
 type Seat struct {
 	ID          uint      `gorm:"primaryKey;autoIncrement" json:"id"`
-	CoachID     uint      `gorm:"not null;uniqueIndex:idx_seat_coach" json:"coach_id"`
-	SeatNumber  string    `gorm:"size:10;not null;uniqueIndex:idx_seat_coach" json:"seat_number"`
+	CoachID     uint      `gorm:"not null;index" json:"coach_id"`
+	SeatNumber  string    `gorm:"size:10;not null" json:"seat_number"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 
