@@ -1,0 +1,79 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: lfs_db_dev
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lfs}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: ${POSTGRES_DB:-lfsrailway}
+    volumes:
+      - postgres_data_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lfs} -d ${POSTGRES_DB:-lfsrailway}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - lfs_net_dev
+
+  backend:
+    image: golang:1.22-alpine
+    container_name: lfs_backend_dev
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-lfs}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-lfsrailway}?sslmode=disable
+      PORT: "8080"
+      ENVIRONMENT: development
+    # Installs 'air' for hot-reloading Go code and runs it
+    command: sh -c "go install github.com/air-verse/air@v1.52.3 && air --build.cmd 'go build -o ./tmp/main ./cmd/server' --build.bin './tmp/main'"
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - lfs_net_dev
+
+  seeder:
+    image: golang:1.22-alpine
+    container_name: lfs_seeder_dev
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-lfs}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-lfsrailway}?sslmode=disable
+    command: sh -c "go run ./seed"
+    depends_on:
+      backend:
+        condition: service_started
+    networks:
+      - lfs_net_dev
+
+  frontend:
+    image: node:22-alpine
+    container_name: lfs_frontend_dev
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules # Prevents your local node_modules from conflicting with the container's
+    environment:
+      - BACKEND_URL=http://backend:8080
+    # Runs Vite's dev server exposed to the network
+    command: sh -c "npm install && npm run dev -- --host"
+    ports:
+      - "4000:5173"
+    depends_on:
+      - backend
+    networks:
+      - lfs_net_dev
+
+volumes:
+  postgres_data_dev:
+
+networks:
+  lfs_net_dev:

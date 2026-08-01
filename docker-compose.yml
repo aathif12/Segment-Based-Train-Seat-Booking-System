@@ -13,7 +13,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lfs}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lfs} -d ${POSTGRES_DB:-lfsrailway}"]
       interval: 5s
       timeout: 5s
       retries: 10
