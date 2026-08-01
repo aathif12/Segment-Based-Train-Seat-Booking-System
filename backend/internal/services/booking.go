@@ -49,9 +49,11 @@ type AvailabilityResult struct {
 // Actual conflict prevention happens inside Book() via SELECT FOR UPDATE.
 func (s *BookingService) GetAvailableSeats(startOrder, endOrder int) ([]AvailabilityResult, error) {
 	var seats []models.Seat
-	if err := s.db.Preload("Coach").Find(&seats, "coaches.type = ?", models.CoachTypeReserved).
+	if err := s.db.
 		Joins("JOIN coaches ON coaches.id = seats.coach_id").
-		Where("coaches.type = ?", models.CoachTypeReserved).Find(&seats).Error; err != nil {
+		Where("coaches.type = ?", models.CoachTypeReserved).
+		Preload("Coach").
+		Find(&seats).Error; err != nil {
 		return nil, fmt.Errorf("fetch seats: %w", err)
 	}
 
