@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react'
+import { CheckCircle2, XCircle, Info } from 'lucide-react'
 
 export type ToastType = 'success' | 'error' | 'info'
 
@@ -32,10 +33,10 @@ interface ToastContainerProps {
   toasts: Toast[]
 }
 
-const icons: Record<ToastType, string> = {
-  success: '✓',
-  error: '✕',
-  info: 'ℹ',
+const icons: Record<ToastType, React.ReactNode> = {
+  success: <CheckCircle2 size={16} />,
+  error: <XCircle size={16} />,
+  info: <Info size={16} />,
 }
 
 export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts }) => {
@@ -44,7 +45,7 @@ export const ToastContainer: React.FC<ToastContainerProps> = ({ toasts }) => {
     <div className="toast-container">
       {toasts.map(t => (
         <div key={t.id} className={`toast toast-${t.type}`}>
-          <span style={{ fontWeight: 700 }}>{icons[t.type]}</span>
+          <span style={{ display: 'flex', alignItems: 'center' }}>{icons[t.type]}</span>
           {t.message}
         </div>
       ))}

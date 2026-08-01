@@ -178,6 +178,17 @@ func (h *AdminHandler) GetOccupancy(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": stats})
 }
 
+// GetBookings returns all bookings for the admin dashboard.
+// GET /api/admin/bookings
+func (h *AdminHandler) GetBookings(c *gin.Context) {
+	bookings, err := h.svc.GetAllBookings()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": bookings})
+}
+
 // GetRevenue returns revenue statistics grouped by station pair.
 // GET /api/admin/revenue
 func (h *AdminHandler) GetRevenue(c *gin.Context) {

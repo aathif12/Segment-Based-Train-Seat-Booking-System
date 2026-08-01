@@ -5,6 +5,15 @@ const api = axios.create({
   headers: { 'Content-Type': 'application/json' },
 })
 
+export const setAuthCredentials = (username?: string, password?: string) => {
+  if (username && password) {
+    const token = btoa(`${username}:${password}`)
+    api.defaults.headers.common['Authorization'] = `Basic ${token}`
+  } else {
+    delete api.defaults.headers.common['Authorization']
+  }
+}
+
 // ── Types ────────────────────────────────────────────────────────────────────
 
 export interface Station {
@@ -99,5 +108,8 @@ export const fetchOccupancy = () =>
 
 export const fetchRevenue = () =>
   api.get<{ data: RevenueRecord[] }>('/admin/revenue').then(r => r.data.data)
+
+export const fetchBookings = () =>
+  api.get<{ data: Booking[] }>('/admin/bookings').then(r => r.data.data)
 
 export default api

@@ -58,11 +58,15 @@ func main() {
 		api.DELETE("/bookings/:id", bookingHandler.CancelBooking)
 		api.POST("/bookings/waitlist", bookingHandler.AddToWaitlist)
 
-		// Admin
+		// Admin (Protected by Basic Auth)
 		admin := api.Group("/admin")
+		admin.Use(gin.BasicAuth(gin.Accounts{
+			"admin": "admin",
+		}))
 		{
 			admin.GET("/occupancy", adminHandler.GetOccupancy)
 			admin.GET("/revenue", adminHandler.GetRevenue)
+			admin.GET("/bookings", adminHandler.GetBookings)
 		}
 	}
 

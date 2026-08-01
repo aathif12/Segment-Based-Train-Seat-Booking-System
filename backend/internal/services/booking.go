@@ -293,6 +293,16 @@ func (s *BookingService) GetBookingByID(id uint) (*models.Booking, error) {
 	return &booking, nil
 }
 
+// GetAllBookings fetches all bookings ordered by newest first.
+func (s *BookingService) GetAllBookings() ([]models.Booking, error) {
+	var bookings []models.Booking
+	if err := s.db.Preload("Seat.Coach").Preload("StartStation").Preload("EndStation").
+		Order("created_at DESC").Find(&bookings).Error; err != nil {
+		return nil, err
+	}
+	return bookings, nil
+}
+
 // AdminOccupancy returns occupancy stats grouped by coach.
 type CoachOccupancy struct {
 	CoachID    uint      `json:"coach_id"`

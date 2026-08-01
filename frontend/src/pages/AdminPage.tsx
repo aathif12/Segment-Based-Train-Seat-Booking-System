@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { fetchOccupancy, fetchRevenue } from '../api/client'
-import type { CoachOccupancy, RevenueRecord } from '../api/client'
+import { Settings, LogIn, TrendingUp, Users, AlertCircle, Trash2, Ticket } from 'lucide-react'
+import { fetchOccupancy, fetchRevenue, fetchBookings, setAuthCredentials, cancelBooking } from '../api/client'
+import type { CoachOccupancy, RevenueRecord, Booking } from '../api/client'
 import type { ToastType } from '../components/Toast'
 
 interface AdminPageProps {
@@ -8,19 +9,120 @@ interface AdminPageProps {
 }
 
 const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [loginLoading, setLoginLoading] = useState(false)
+
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'bookings'>('dashboard')
+  
   const [occupancy, setOccupancy] = useState<CoachOccupancy[]>([])
   const [revenue, setRevenue] = useState<RevenueRecord[]>([])
-  const [loading, setLoading] = useState(true)
+  const [bookings, setBookings] = useState<Booking[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const loadDashboardData = async () => {
+    try {
+      const [occ, rev] = await Promise.all([fetchOccupancy(), fetchRevenue()])
+      setOccupancy(occ ?? [])
+      setRevenue(rev ?? [])
+    } catch {
+      addToast('Failed to load admin data', 'error')
+    }
+  }
+
+  const loadBookings = async () => {
+    try {
+      const b = await fetchBookings()
+      setBookings(b ?? [])
+    } catch {
+      addToast('Failed to load bookings', 'error')
+    }
+  }
 
   useEffect(() => {
-    Promise.all([fetchOccupancy(), fetchRevenue()])
-      .then(([occ, rev]) => {
-        setOccupancy(occ ?? [])
-        setRevenue(rev ?? [])
-      })
-      .catch(() => addToast('Failed to load admin data', 'error'))
-      .finally(() => setLoading(false))
-  }, [])
+    if (isAuthenticated) {
+      setLoading(true)
+      if (activeTab === 'dashboard') {
+        loadDashboardData().finally(() => setLoading(false))
+      } else {
+        loadBookings().finally(() => setLoading(false))
+      }
+    }
+  }, [isAuthenticated, activeTab])
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoginLoading(true)
+    setAuthCredentials(username, password)
+    
+    try {
+      // Test credentials
+      await fetchOccupancy()
+      setIsAuthenticated(true)
+      addToast('Logged in successfully', 'success')
+    } catch (err: any) {
+      if (err.response?.status === 401) {
+        addToast('Invalid credentials', 'error')
+      } else {
+        addToast('Error connecting to server', 'error')
+      }
+      setAuthCredentials(undefined, undefined)
+    } finally {
+      setLoginLoading(false)
+    }
+  }
+
+  const handleCancelBooking = async (id: number) => {
+    if (!window.confirm('Are you sure you want to cancel this booking?')) return
+    try {
+      await cancelBooking(id)
+      addToast('Booking cancelled successfully', 'success')
+      loadBookings() // refresh list
+    } catch {
+      addToast('Failed to cancel booking', 'error')
+    }
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <main style={{ padding: '80px 0', display: 'flex', justifyContent: 'center' }}>
+        <div className="glass-card" style={{ maxWidth: 400, width: '100%', padding: '40px 30px' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 20 }}>
+            <div style={{ background: 'var(--color-primary-light)', padding: 16, borderRadius: '50%', color: 'var(--color-primary)' }}>
+              <Settings size={32} />
+            </div>
+          </div>
+          <h2 style={{ textAlign: 'center', marginBottom: 30 }}>Admin Login</h2>
+          <form onSubmit={handleLogin}>
+            <div className="form-group">
+              <label className="form-label">Username</label>
+              <input 
+                type="text" 
+                className="form-input" 
+                value={username} 
+                onChange={e => setUsername(e.target.value)} 
+                required 
+              />
+            </div>
+            <div className="form-group" style={{ marginBottom: 30 }}>
+              <label className="form-label">Password</label>
+              <input 
+                type="password" 
+                className="form-input" 
+                value={password} 
+                onChange={e => setPassword(e.target.value)} 
+                required 
+              />
+            </div>
+            <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loginLoading}>
+              {loginLoading ? 'Authenticating...' : <><LogIn size={18} /> Sign In</>}
+            </button>
+          </form>
+        </div>
+      </main>
+    )
+  }
 
   const totalRevenue = revenue.reduce((sum, r) => sum + r.total_revenue, 0)
   const totalBookings = revenue.reduce((sum, r) => sum + r.booking_count, 0)
@@ -31,20 +133,36 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
     <main style={{ padding: '48px 0' }}>
       <div className="container">
         <div className="fade-up">
-          <div className="hero-eyebrow" style={{ marginBottom: 12 }}>
-            <span>⚙️</span> Department Operations View
+          <div className="hero-eyebrow" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Settings size={18} /> Department Operations View
           </div>
           <h1 style={{ marginBottom: 8 }}>Admin Dashboard</h1>
-          <p style={{ color: 'var(--color-text-muted)', marginBottom: 40 }}>
-            Live occupancy and revenue analytics for the Colombo Fort–Badulla line.
+          <p style={{ color: 'var(--color-text-muted)', marginBottom: 30 }}>
+            Live occupancy, revenue analytics, and booking management.
           </p>
+        </div>
+
+        {/* ── Tabs ─────────────────────────────────────────────────── */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 40, borderBottom: '1px solid rgba(0,0,0,0.1)', paddingBottom: 16 }}>
+          <button 
+            className={`btn ${activeTab === 'dashboard' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setActiveTab('dashboard')}
+          >
+            <TrendingUp size={18} /> Analytics
+          </button>
+          <button 
+            className={`btn ${activeTab === 'bookings' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setActiveTab('bookings')}
+          >
+            <Ticket size={18} /> Manage Bookings
+          </button>
         </div>
 
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: '80px 0' }}>
             <div className="spinner spinner-lg" />
           </div>
-        ) : (
+        ) : activeTab === 'dashboard' ? (
           <>
             {/* ── Summary Stats ──────────────────────────────────────── */}
             <div className="admin-grid fade-up">
@@ -69,7 +187,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
             </div>
 
             {/* ── Coach Occupancy ────────────────────────────────────── */}
-            <h2 style={{ margin: '40px 0 20px' }}>Coach Occupancy</h2>
+            <h2 style={{ margin: '40px 0 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Users size={24} color="var(--color-primary)" /> Coach Occupancy
+            </h2>
             <div className="admin-grid fade-up">
               {occupancy.map(coach => {
                 const pct = coach.total_seats > 0
@@ -103,11 +223,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
             </div>
 
             {/* ── Revenue by Station Pair ────────────────────────────── */}
-            <h2 style={{ margin: '40px 0 20px' }}>Revenue by Route Segment</h2>
+            <h2 style={{ margin: '40px 0 20px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <TrendingUp size={24} color="var(--color-primary)" /> Revenue by Route Segment
+            </h2>
             <div className="glass-card fade-up" style={{ overflow: 'hidden' }}>
               {revenue.length === 0 ? (
                 <div className="empty-state">
-                  <div className="icon">📊</div>
+                  <div className="icon"><AlertCircle size={48} color="var(--color-text-muted)" /></div>
                   <h3>No revenue data yet</h3>
                   <p>Make some bookings to see revenue analytics here.</p>
                 </div>
@@ -137,6 +259,64 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
               )}
             </div>
           </>
+        ) : (
+          <div className="glass-card fade-up" style={{ overflow: 'hidden' }}>
+            {bookings.length === 0 ? (
+              <div className="empty-state">
+                <div className="icon"><Ticket size={48} color="var(--color-text-muted)" /></div>
+                <h3>No bookings found</h3>
+                <p>There are currently no bookings in the system.</p>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="revenue-table" style={{ minWidth: 800 }}>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Passenger</th>
+                      <th>Route</th>
+                      <th>Seat</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {bookings.map(b => (
+                      <tr key={b.id}>
+                        <td style={{ color: 'var(--color-text-muted)' }}>#{b.id}</td>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{b.passenger_name}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{b.passenger_email}</div>
+                        </td>
+                        <td>{b.start_station.name} → {b.end_station.name}</td>
+                        <td>Coach {b.seat.coach.name} - Seat {b.seat.seat_number}</td>
+                        <td>
+                          <span className={`badge ${b.status === 'CONFIRMED' ? 'badge-reserved' : 'badge-unreserved'}`} style={{ 
+                            background: b.status === 'CANCELLED' ? 'rgba(235, 87, 87, 0.1)' : undefined,
+                            color: b.status === 'CANCELLED' ? 'var(--color-danger)' : undefined,
+                            border: b.status === 'CANCELLED' ? '1px solid rgba(235, 87, 87, 0.2)' : undefined
+                          }}>
+                            {b.status}
+                          </span>
+                        </td>
+                        <td>
+                          {b.status === 'CONFIRMED' && (
+                            <button 
+                              className="btn btn-outline" 
+                              style={{ padding: '6px 12px', color: 'var(--color-danger)', borderColor: 'rgba(235,87,87,0.3)' }}
+                              onClick={() => handleCancelBooking(b.id)}
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         )}
       </div>
     </main>

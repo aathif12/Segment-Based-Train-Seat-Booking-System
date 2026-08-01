@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { Train, Search, MapPin, Ruler, Coins, CheckCircle2 } from 'lucide-react'
 import { fetchStations, fetchAvailableSeats } from '../api/client'
 import type { Station, AvailableSeat } from '../api/client'
 import SeatMap from '../components/SeatMap'
@@ -69,8 +70,8 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
       {/* ── Hero ──────────────────────────────────────────────────── */}
       <section className="hero">
         <div className="container">
-          <div className="hero-eyebrow fade-in">
-            <span>🚂</span> Colombo Fort — Badulla Scenic Line
+          <div className="hero-eyebrow fade-in" style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+            <Train size={18} /> Colombo Fort — Badulla Scenic Line
           </div>
           <h1 className="hero-title fade-up">
             Book Your Seat,<br />Pay for Your Journey
@@ -124,7 +125,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                 >
                   {loadingSeats
                     ? <><div className="spinner" style={{ width: 18, height: 18 }} /> Searching…</>
-                    : '🔍 Find Seats'}
+                    : <><Search size={18} style={{ marginRight: 8 }} /> Find Seats</>}
                 </button>
               </div>
             )}
@@ -140,11 +141,11 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                 display: 'flex', gap: 24, flexWrap: 'wrap',
                 fontSize: '0.88rem', color: 'var(--color-text-muted)'
               }}>
-                <span>📍 {fromStation.name} → {toStation.name}</span>
-                <span>📏 ~{Math.abs(toStation.distance_km - fromStation.distance_km)} km</span>
-                <span>💰 From LKR {(Math.abs(toStation.distance_km - fromStation.distance_km) * 3.5).toFixed(0)}</span>
+                <span><MapPin size={14} style={{ display: 'inline', verticalAlign: 'text-bottom' }} /> {fromStation.name} → {toStation.name}</span>
+                <span><Ruler size={14} style={{ display: 'inline', verticalAlign: 'text-bottom' }} /> ~{Math.abs(toStation.distance_km - fromStation.distance_km)} km</span>
+                <span><Coins size={14} style={{ display: 'inline', verticalAlign: 'text-bottom' }} /> From LKR {(Math.abs(toStation.distance_km - fromStation.distance_km) * 3.5).toFixed(0)}</span>
                 {seats.length > 0 && (
-                  <span>✅ {seats.filter(s => s.is_available).length} seats available</span>
+                  <span><CheckCircle2 size={14} style={{ display: 'inline', verticalAlign: 'text-bottom', color: 'var(--color-success)' }} /> {seats.filter(s => s.is_available).length} seats available</span>
                 )}
               </div>
             )}

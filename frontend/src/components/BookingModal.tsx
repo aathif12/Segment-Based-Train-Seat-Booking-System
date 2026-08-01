@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { CheckCircle2, Ticket } from 'lucide-react'
 import type { AvailableSeat, BookingRequest, Station } from '../api/client'
 import { createBooking, addToWaitlist } from '../api/client'
 import type { ToastType } from './Toast'
@@ -39,7 +40,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
       const result = await createBooking(req)
       setBookingId(result.data.id)
       setConfirmed(true)
-      addToast('Booking confirmed! 🎉', 'success')
+      addToast('Booking confirmed!', 'success')
     } catch (err: any) {
       const code = err?.response?.data?.code
       const message = err?.response?.data?.error ?? 'Booking failed. Please try again.'
@@ -88,7 +89,9 @@ const BookingModal: React.FC<BookingModalProps> = ({
         {confirmed ? (
           // ── Confirmation View ──────────────────────────────────────────
           <div className="confirmation-card fade-up">
-            <div className="confirmation-icon">✓</div>
+            <div className="confirmation-icon" style={{ display: 'flex', justifyContent: 'center' }}>
+              <CheckCircle2 size={48} color="var(--color-success)" />
+            </div>
             <h2 style={{ marginBottom: 8 }}>You're all set!</h2>
             <p style={{ color: 'var(--color-text-muted)', marginBottom: 20 }}>
               Your seat is confirmed. Booking reference #{bookingId}.
@@ -177,11 +180,11 @@ const BookingModal: React.FC<BookingModalProps> = ({
               <button
                 id="btn-confirm-booking"
                 className="btn btn-primary"
-                style={{ flex: 1 }}
+                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
                 onClick={handleBook}
                 disabled={loading}
               >
-                {loading ? <><div className="spinner" style={{ width: 18, height: 18 }} /> Booking…</> : '🎟 Confirm Booking'}
+                {loading ? <><div className="spinner" style={{ width: 18, height: 18 }} /> Booking…</> : <><Ticket size={18} /> Confirm Booking</>}
               </button>
               <button
                 id="btn-join-waitlist"
