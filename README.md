@@ -33,7 +33,7 @@ cp .env.example .env
 docker-compose up --build
 
 # 4. Open the app
-#    Frontend:  http://localhost:4000
+#    Frontend:  http://localhost:3000
 #    Backend:   http://localhost:8080/api
 ```
 
