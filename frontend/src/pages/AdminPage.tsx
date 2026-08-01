@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { Settings, LogIn, TrendingUp, Users, AlertCircle, Trash2, Ticket } from 'lucide-react'
-import { fetchOccupancy, fetchRevenue, fetchBookings, setAuthCredentials, cancelBooking } from '../api/client'
-import type { CoachOccupancy, RevenueRecord, Booking } from '../api/client'
+import { Settings, LogIn, TrendingUp, Users, AlertCircle, Trash2, Ticket, LogOut, List } from 'lucide-react'
+import { fetchOccupancy, fetchRevenue, fetchBookings, fetchWaitlist, setAuthCredentials, adminCancelBooking } from '../api/client'
+import type { CoachOccupancy, RevenueRecord, Booking, WaitlistEntry } from '../api/client'
 import type { ToastType } from '../components/Toast'
 
 interface AdminPageProps {
@@ -14,11 +14,12 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
   const [password, setPassword] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'bookings'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'bookings' | 'waitlist'>('dashboard')
   
   const [occupancy, setOccupancy] = useState<CoachOccupancy[]>([])
   const [revenue, setRevenue] = useState<RevenueRecord[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
+  const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([])
   const [loading, setLoading] = useState(false)
 
   const loadDashboardData = async () => {
@@ -40,13 +41,24 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
     }
   }
 
+  const loadWaitlist = async () => {
+    try {
+      const w = await fetchWaitlist()
+      setWaitlist(w ?? [])
+    } catch {
+      addToast('Failed to load waitlist', 'error')
+    }
+  }
+
   useEffect(() => {
     if (isAuthenticated) {
       setLoading(true)
       if (activeTab === 'dashboard') {
         loadDashboardData().finally(() => setLoading(false))
-      } else {
+      } else if (activeTab === 'bookings') {
         loadBookings().finally(() => setLoading(false))
+      } else {
+        loadWaitlist().finally(() => setLoading(false))
       }
     }
   }, [isAuthenticated, activeTab])
@@ -76,12 +88,19 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
   const handleCancelBooking = async (id: number) => {
     if (!window.confirm('Are you sure you want to cancel this booking?')) return
     try {
-      await cancelBooking(id)
+      await adminCancelBooking(id)
       addToast('Booking cancelled successfully', 'success')
       loadBookings() // refresh list
     } catch {
       addToast('Failed to cancel booking', 'error')
     }
+  }
+
+  const handleLogout = () => {
+    setIsAuthenticated(false)
+    setAuthCredentials(undefined, undefined)
+    setUsername('')
+    setPassword('')
   }
 
   if (!isAuthenticated) {
@@ -132,14 +151,19 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
   return (
     <main style={{ padding: '48px 0' }}>
       <div className="container">
-        <div className="fade-up">
-          <div className="hero-eyebrow" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Settings size={18} /> Department Operations View
+        <div className="fade-up" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <div>
+            <div className="hero-eyebrow" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Settings size={18} /> Department Operations View
+            </div>
+            <h1 style={{ marginBottom: 8 }}>Admin Dashboard</h1>
+            <p style={{ color: 'var(--color-text-muted)', marginBottom: 30 }}>
+              Live occupancy, revenue analytics, and booking management.
+            </p>
           </div>
-          <h1 style={{ marginBottom: 8 }}>Admin Dashboard</h1>
-          <p style={{ color: 'var(--color-text-muted)', marginBottom: 30 }}>
-            Live occupancy, revenue analytics, and booking management.
-          </p>
+          <button className="btn btn-outline" onClick={handleLogout} title="Logout">
+            <LogOut size={18} />
+          </button>
         </div>
 
         {/* ── Tabs ─────────────────────────────────────────────────── */}
@@ -155,6 +179,12 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
             onClick={() => setActiveTab('bookings')}
           >
             <Ticket size={18} /> Manage Bookings
+          </button>
+          <button 
+            className={`btn ${activeTab === 'waitlist' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setActiveTab('waitlist')}
+          >
+            <List size={18} /> Waitlist
           </button>
         </div>
 
@@ -259,7 +289,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
               )}
             </div>
           </>
-        ) : (
+        ) : activeTab === 'bookings' ? (
           <div className="glass-card fade-up" style={{ overflow: 'hidden' }}>
             {bookings.length === 0 ? (
               <div className="empty-state">
@@ -309,6 +339,52 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                               <Trash2 size={16} />
                             </button>
                           )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="glass-card fade-up" style={{ overflow: 'hidden' }}>
+            {waitlist.length === 0 ? (
+              <div className="empty-state">
+                <div className="icon"><List size={48} color="var(--color-text-muted)" /></div>
+                <h3>No waitlist entries</h3>
+                <p>There is no one currently on the waitlist.</p>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="revenue-table" style={{ minWidth: 800 }}>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Passenger</th>
+                      <th>Route</th>
+                      <th>Target Seat</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {waitlist.map(w => (
+                      <tr key={w.id}>
+                        <td style={{ color: 'var(--color-text-muted)' }}>#{w.id}</td>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{w.passenger_name}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{w.passenger_email}</div>
+                        </td>
+                        <td>{w.start_station.name} → {w.end_station.name}</td>
+                        <td>Coach {w.seat.coach.name} - Seat {w.seat.seat_number}</td>
+                        <td>
+                          <span className={`badge ${w.status === 'CONFIRMED' ? 'badge-reserved' : 'badge-unreserved'}`} style={{ 
+                            background: w.status === 'WAITLISTED' ? 'rgba(242, 153, 74, 0.1)' : undefined,
+                            color: w.status === 'WAITLISTED' ? '#F2994A' : undefined,
+                            border: w.status === 'WAITLISTED' ? '1px solid rgba(242, 153, 74, 0.2)' : undefined
+                          }}>
+                            {w.status}
+                          </span>
                         </td>
                       </tr>
                     ))}

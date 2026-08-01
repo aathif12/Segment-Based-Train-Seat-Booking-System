@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { CheckCircle2, Ticket } from 'lucide-react'
 import type { AvailableSeat, BookingRequest, Station } from '../api/client'
 import { createBooking, addToWaitlist } from '../api/client'
+import { useAuth } from '../context/AuthContext'
 import type { ToastType } from './Toast'
 
 interface BookingModalProps {
@@ -16,8 +17,9 @@ interface BookingModalProps {
 const BookingModal: React.FC<BookingModalProps> = ({
   seat, fromStation, toStation, onClose, onSuccess, addToast
 }) => {
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
+  const { user } = useAuth()
+  const [name, setName] = useState(user?.name || '')
+  const [email, setEmail] = useState(user?.email || '')
   const [loading, setLoading] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [bookingId, setBookingId] = useState<number | null>(null)

@@ -35,6 +35,7 @@ type BookingRequest struct {
 	PassengerEmail string `json:"passenger_email" binding:"required,email"`
 	StartStationID uint   `json:"start_station_id" binding:"required"`
 	EndStationID   uint   `json:"end_station_id" binding:"required"`
+	UserID         *uint  `json:"-"`
 }
 
 // AvailabilityResult holds a seat with its availability flag for a given segment.
@@ -145,6 +146,7 @@ func (s *BookingService) Book(req BookingRequest) (*models.Booking, error) {
 
 		booking = &models.Booking{
 			SeatID:            seat.ID,
+			UserID:            req.UserID,
 			PassengerName:     req.PassengerName,
 			PassengerEmail:    req.PassengerEmail,
 			StartStationOrder: startStation.OrderInRoute,
@@ -267,6 +269,7 @@ func (s *BookingService) AddToWaitlist(req BookingRequest) (*models.WaitlistEntr
 
 	entry := &models.WaitlistEntry{
 		SeatID:            req.SeatID,
+		UserID:            req.UserID,
 		PassengerName:     req.PassengerName,
 		PassengerEmail:    req.PassengerEmail,
 		StartStationOrder: startStation.OrderInRoute,
@@ -301,6 +304,27 @@ func (s *BookingService) GetAllBookings() ([]models.Booking, error) {
 		return nil, err
 	}
 	return bookings, nil
+}
+
+// GetUserBookings fetches all bookings belonging to a specific user.
+func (s *BookingService) GetUserBookings(userID uint) ([]models.Booking, error) {
+	var bookings []models.Booking
+	if err := s.db.Where("user_id = ?", userID).
+		Preload("Seat.Coach").Preload("StartStation").Preload("EndStation").
+		Order("created_at DESC").Find(&bookings).Error; err != nil {
+		return nil, err
+	}
+	return bookings, nil
+}
+
+// GetAllWaitlist fetches all waitlist entries.
+func (s *BookingService) GetAllWaitlist() ([]models.WaitlistEntry, error) {
+	var waitlist []models.WaitlistEntry
+	if err := s.db.Preload("User").Preload("Seat.Coach").Preload("StartStation").Preload("EndStation").
+		Order("created_at DESC").Find(&waitlist).Error; err != nil {
+		return nil, err
+	}
+	return waitlist, nil
 }
 
 // AdminOccupancy returns occupancy stats grouped by coach.

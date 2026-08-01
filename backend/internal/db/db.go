@@ -33,6 +33,7 @@ func Connect(dsn string) *gorm.DB {
 // auto-migrate is used here so `docker-compose up --build` works on a clean machine.
 func autoMigrate(db *gorm.DB) error {
 	err := db.AutoMigrate(
+		&models.User{},
 		&models.Station{},
 		&models.Coach{},
 		&models.Seat{},

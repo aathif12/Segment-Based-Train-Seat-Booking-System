@@ -78,6 +78,11 @@ func (h *BookingHandler) CreateBooking(c *gin.Context) {
 		return
 	}
 
+	if uid, exists := c.Get("user_id"); exists {
+		userID := uid.(uint)
+		req.UserID = &userID
+	}
+
 	booking, err := h.svc.Book(req)
 	if err != nil {
 		if errors.Is(err, services.ErrSegmentConflict) {
@@ -119,12 +124,47 @@ func (h *BookingHandler) GetBooking(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": booking})
 }
 
-// CancelBooking cancels a confirmed booking.
+// GetUserBookings returns all bookings for the authenticated user.
+// GET /api/user/bookings
+func (h *BookingHandler) GetUserBookings(c *gin.Context) {
+	uid, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	bookings, err := h.svc.GetUserBookings(uid.(uint))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": bookings})
+}
+
+// CancelBooking cancels a confirmed booking if owned by the user.
 // DELETE /api/bookings/:id
 func (h *BookingHandler) CancelBooking(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid booking id"})
+		return
+	}
+
+	uid, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	booking, err := h.svc.GetBookingByID(uint(id))
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "booking not found"})
+		return
+	}
+
+	if booking.UserID == nil || *booking.UserID != uid.(uint) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "you do not have permission to cancel this booking"})
 		return
 	}
 
@@ -143,6 +183,11 @@ func (h *BookingHandler) AddToWaitlist(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
+	}
+
+	if uid, exists := c.Get("user_id"); exists {
+		userID := uid.(uint)
+		req.UserID = &userID
 	}
 
 	entry, err := h.svc.AddToWaitlist(req)
@@ -198,4 +243,32 @@ func (h *AdminHandler) GetRevenue(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"data": stats})
+}
+
+// GetWaitlist returns all waitlist entries for the admin dashboard.
+// GET /api/admin/waitlist
+func (h *AdminHandler) GetWaitlist(c *gin.Context) {
+	waitlist, err := h.svc.GetAllWaitlist()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"data": waitlist})
+}
+
+// CancelBooking cancels a confirmed booking (Admin override).
+// DELETE /api/admin/bookings/:id
+func (h *AdminHandler) CancelBooking(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid booking id"})
+		return
+	}
+
+	if err := h.svc.Cancel(uint(id)); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Booking cancelled successfully"})
 }

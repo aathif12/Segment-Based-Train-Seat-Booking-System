@@ -4,6 +4,16 @@ import (
 	"time"
 )
 
+// User represents a passenger account.
+type User struct {
+	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	Name         string    `gorm:"size:150;not null" json:"name"`
+	Email        string    `gorm:"size:255;not null;uniqueIndex" json:"email"`
+	PasswordHash string    `gorm:"not null" json:"-"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 // CoachType distinguishes reserved (seat-assigned) from unreserved coaches.
 type CoachType string
 
@@ -70,6 +80,7 @@ type Seat struct {
 // and are fully supported, enabling segment-based resale.
 type Booking struct {
 	ID                 uint          `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID             *uint         `gorm:"index" json:"user_id,omitempty"`
 	SeatID             uint          `gorm:"not null;index" json:"seat_id"`
 	PassengerName      string        `gorm:"size:150;not null" json:"passenger_name"`
 	PassengerEmail     string        `gorm:"size:255;not null" json:"passenger_email"`
@@ -85,12 +96,14 @@ type Booking struct {
 	Seat         Seat    `gorm:"foreignKey:SeatID" json:"seat,omitempty"`
 	StartStation Station `gorm:"foreignKey:StartStationID" json:"start_station,omitempty"`
 	EndStation   Station `gorm:"foreignKey:EndStationID" json:"end_station,omitempty"`
+	User         *User   `gorm:"foreignKey:UserID" json:"user,omitempty"`
 }
 
 // WaitlistEntry queues a passenger when a seat's segment is fully booked.
 // When a booking is cancelled, the service promotes the next matching entry.
 type WaitlistEntry struct {
 	ID                uint          `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID            *uint         `gorm:"index" json:"user_id,omitempty"`
 	SeatID            uint          `gorm:"not null;index" json:"seat_id"`
 	PassengerName     string        `gorm:"size:150;not null" json:"passenger_name"`
 	PassengerEmail    string        `gorm:"size:255;not null" json:"passenger_email"`
@@ -101,4 +114,9 @@ type WaitlistEntry struct {
 	Status            BookingStatus `gorm:"size:20;not null;default:'WAITLISTED'" json:"status"`
 	CreatedAt         time.Time     `json:"created_at"`
 	UpdatedAt         time.Time     `json:"updated_at"`
+
+	User              *User         `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	Seat              Seat          `gorm:"foreignKey:SeatID" json:"seat,omitempty"`
+	StartStation      Station       `gorm:"foreignKey:StartStationID" json:"start_station,omitempty"`
+	EndStation        Station       `gorm:"foreignKey:EndStationID" json:"end_station,omitempty"`
 }

@@ -24,6 +24,7 @@ func main() {
 	bookingService := services.NewBookingService(database, fareService)
 
 	// Wire up handlers.
+	authHandler := handlers.NewAuthHandler(database)
 	stationHandler := handlers.NewStationHandler(database)
 	bookingHandler := handlers.NewBookingHandler(bookingService)
 	adminHandler := handlers.NewAdminHandler(bookingService)
@@ -46,17 +47,36 @@ func main() {
 	// API routes.
 	api := r.Group("/api")
 	{
+		// Auth
+		auth := api.Group("/auth")
+		{
+			auth.POST("/register", authHandler.Register)
+			auth.POST("/login", authHandler.Login)
+		}
+
 		// Stations
 		api.GET("/stations", stationHandler.List)
 
 		// Seats & Availability
 		api.GET("/seats/available", bookingHandler.GetAvailableSeats)
 
-		// Bookings
-		api.POST("/bookings", bookingHandler.CreateBooking)
+		// Bookings (Optional Auth for creating to link UserID)
+		bookings := api.Group("/bookings")
+		bookings.Use(middleware.OptionalAuthMiddleware())
+		{
+			bookings.POST("", bookingHandler.CreateBooking)
+			bookings.POST("/waitlist", bookingHandler.AddToWaitlist)
+		}
+		
 		api.GET("/bookings/:id", bookingHandler.GetBooking)
-		api.DELETE("/bookings/:id", bookingHandler.CancelBooking)
-		api.POST("/bookings/waitlist", bookingHandler.AddToWaitlist)
+		
+		// Protected User Routes
+		user := api.Group("/user")
+		user.Use(middleware.AuthMiddleware())
+		{
+			user.GET("/bookings", bookingHandler.GetUserBookings)
+			user.DELETE("/bookings/:id", bookingHandler.CancelBooking) // User cancel
+		}
 
 		// Admin (Protected by Basic Auth)
 		admin := api.Group("/admin")
@@ -67,6 +87,8 @@ func main() {
 			admin.GET("/occupancy", adminHandler.GetOccupancy)
 			admin.GET("/revenue", adminHandler.GetRevenue)
 			admin.GET("/bookings", adminHandler.GetBookings)
+			admin.GET("/waitlist", adminHandler.GetWaitlist)
+			admin.DELETE("/bookings/:id", adminHandler.CancelBooking) // Admin cancel
 		}
 	}
 
