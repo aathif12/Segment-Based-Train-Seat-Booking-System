@@ -1,0 +1,18 @@
+.env
+*.env.local
+*.log
+
+# Go
+backend/vendor/
+backend/*.exe
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Docker volumes
+postgres_data/
+
+# OS
+.DS_Store
+Thumbs.db
