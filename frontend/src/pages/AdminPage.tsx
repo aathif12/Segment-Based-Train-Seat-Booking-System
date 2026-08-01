@@ -416,7 +416,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
               </div>
             )}
           </div>
-        ) : (
+        ) : activeTab === 'waitlist' ? (
           <div className="glass-card fade-up" style={{ overflow: 'hidden' }}>
             {waitlist.length === 0 ? (
               <div className="empty-state">
