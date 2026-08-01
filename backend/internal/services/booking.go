@@ -33,6 +33,7 @@ type BookingRequest struct {
 	SeatID         uint   `json:"seat_id" binding:"required"`
 	PassengerName  string `json:"passenger_name" binding:"required,min=2,max=150"`
 	PassengerEmail string `json:"passenger_email" binding:"required,email"`
+	TravelDate     string `json:"travel_date" binding:"required"`
 	StartStationID uint   `json:"start_station_id" binding:"required"`
 	EndStationID   uint   `json:"end_station_id" binding:"required"`
 	UserID         *uint  `json:"-"`
@@ -45,10 +46,10 @@ type AvailabilityResult struct {
 	Fare        float64 `json:"fare"`
 }
 
-// GetAvailableSeats returns all reserved seats with availability status for the given segment.
+// GetAvailableSeats returns all reserved seats with availability status for the given segment and date.
 // It does NOT lock rows — this is a read-only query for the UI to display the seat map.
 // Actual conflict prevention happens inside Book() via SELECT FOR UPDATE.
-func (s *BookingService) GetAvailableSeats(startOrder, endOrder int) ([]AvailabilityResult, error) {
+func (s *BookingService) GetAvailableSeats(startOrder, endOrder int, travelDate string) ([]AvailabilityResult, error) {
 	var seats []models.Seat
 	if err := s.db.
 		Joins("JOIN coaches ON coaches.id = seats.coach_id").
@@ -63,8 +64,8 @@ func (s *BookingService) GetAvailableSeats(startOrder, endOrder int) ([]Availabi
 	for _, seat := range seats {
 		var conflictCount int64
 		s.db.Model(&models.Booking{}).
-			Where("seat_id = ? AND status = ? AND start_station_order < ? AND end_station_order > ?",
-				seat.ID, models.BookingStatusConfirmed, endOrder, startOrder).
+			Where("seat_id = ? AND travel_date = ? AND status = ? AND start_station_order < ? AND end_station_order > ?",
+				seat.ID, travelDate, models.BookingStatusConfirmed, endOrder, startOrder).
 			Count(&conflictCount)
 
 		// Fetch stations to compute fare estimate
@@ -130,8 +131,9 @@ func (s *BookingService) Book(req BookingRequest) (*models.Booking, error) {
 		// 3. Check for overlapping bookings — now safe because the seat row is locked.
 		var conflictCount int64
 		tx.Model(&models.Booking{}).
-			Where(`seat_id = ? AND status = ? AND start_station_order < ? AND end_station_order > ?`,
+			Where(`seat_id = ? AND travel_date = ? AND status = ? AND start_station_order < ? AND end_station_order > ?`,
 				seat.ID,
+				req.TravelDate,
 				models.BookingStatusConfirmed,
 				endStation.OrderInRoute,
 				startStation.OrderInRoute,
@@ -149,6 +151,7 @@ func (s *BookingService) Book(req BookingRequest) (*models.Booking, error) {
 			UserID:            req.UserID,
 			PassengerName:     req.PassengerName,
 			PassengerEmail:    req.PassengerEmail,
+			TravelDate:        req.TravelDate,
 			StartStationOrder: startStation.OrderInRoute,
 			EndStationOrder:   endStation.OrderInRoute,
 			StartStationID:    startStation.ID,
@@ -174,8 +177,8 @@ func (s *BookingService) Book(req BookingRequest) (*models.Booking, error) {
 	return booking, nil
 }
 
-// Cancel marks a booking as cancelled and attempts to promote the first matching
-// waitlist entry for the now-freed segment.
+// Cancel requests a cancellation for a booking. It changes the status to CANCEL_REQUESTED.
+// The seat is NOT freed until an admin processes the cancellation.
 func (s *BookingService) Cancel(bookingID uint) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		var booking models.Booking
@@ -188,7 +191,37 @@ func (s *BookingService) Cancel(bookingID uint) error {
 			return errors.New("only confirmed bookings can be cancelled")
 		}
 
-		booking.Status = models.BookingStatusCancelled
+		booking.Status = models.BookingStatusCancelRequested
+		if err := tx.Save(&booking).Error; err != nil {
+			return err
+		}
+
+		return nil
+	})
+}
+
+// AdminProcessCancellation processes a user's cancellation request, or forces a cancellation.
+// action can be "refund", "reschedule", or "cancel".
+func (s *BookingService) AdminProcessCancellation(bookingID uint, action string) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		var booking models.Booking
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			First(&booking, bookingID).Error; err != nil {
+			return fmt.Errorf("booking not found: %w", err)
+		}
+
+		if booking.Status != models.BookingStatusConfirmed && booking.Status != models.BookingStatusCancelRequested {
+			return errors.New("booking is not in a cancellable state")
+		}
+
+		switch action {
+		case "refund":
+			booking.Status = models.BookingStatusRefunded
+		case "reschedule":
+			booking.Status = models.BookingStatusRescheduled
+		default:
+			booking.Status = models.BookingStatusCancelled
+		}
 		if err := tx.Save(&booking).Error; err != nil {
 			return err
 		}
@@ -205,10 +238,11 @@ func (s *BookingService) Cancel(bookingID uint) error {
 func (s *BookingService) promoteWaitlist(cancelled models.Booking) {
 	var entry models.WaitlistEntry
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		// Find the first waitlist entry that fits within the freed segment.
+		// Find the first waitlist entry that fits within the freed segment and matches the date.
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where(`seat_id = ? AND status = ? AND start_station_order >= ? AND end_station_order <= ?`,
+			Where(`seat_id = ? AND travel_date = ? AND status = ? AND start_station_order >= ? AND end_station_order <= ?`,
 				cancelled.SeatID,
+				cancelled.TravelDate,
 				models.BookingStatusWaitlisted,
 				cancelled.StartStationOrder,
 				cancelled.EndStationOrder,
@@ -221,8 +255,8 @@ func (s *BookingService) promoteWaitlist(cancelled models.Booking) {
 		// Verify no new conflicting booking was created in the meantime.
 		var conflicts int64
 		tx.Model(&models.Booking{}).
-			Where(`seat_id = ? AND status = ? AND start_station_order < ? AND end_station_order > ?`,
-				entry.SeatID, models.BookingStatusConfirmed,
+			Where(`seat_id = ? AND travel_date = ? AND status = ? AND start_station_order < ? AND end_station_order > ?`,
+				entry.SeatID, entry.TravelDate, models.BookingStatusConfirmed,
 				entry.EndStationOrder, entry.StartStationOrder).
 			Count(&conflicts)
 
@@ -235,6 +269,7 @@ func (s *BookingService) promoteWaitlist(cancelled models.Booking) {
 			SeatID:            entry.SeatID,
 			PassengerName:     entry.PassengerName,
 			PassengerEmail:    entry.PassengerEmail,
+			TravelDate:        entry.TravelDate,
 			StartStationOrder: entry.StartStationOrder,
 			EndStationOrder:   entry.EndStationOrder,
 			StartStationID:    entry.StartStationID,
@@ -272,6 +307,7 @@ func (s *BookingService) AddToWaitlist(req BookingRequest) (*models.WaitlistEntr
 		UserID:            req.UserID,
 		PassengerName:     req.PassengerName,
 		PassengerEmail:    req.PassengerEmail,
+		TravelDate:        req.TravelDate,
 		StartStationOrder: startStation.OrderInRoute,
 		EndStationOrder:   endStation.OrderInRoute,
 		StartStationID:    startStation.ID,

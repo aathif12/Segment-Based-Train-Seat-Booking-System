@@ -9,13 +9,14 @@ interface BookingModalProps {
   seat: AvailableSeat
   fromStation: Station
   toStation: Station
+  travelDate: string
   onClose: () => void
   onSuccess: () => void
   addToast: (msg: string, type?: ToastType) => void
 }
 
 const BookingModal: React.FC<BookingModalProps> = ({
-  seat, fromStation, toStation, onClose, onSuccess, addToast
+  seat, fromStation, toStation, travelDate, onClose, onSuccess, addToast
 }) => {
   const { user } = useAuth()
   const [name, setName] = useState(user?.name || '')
@@ -36,6 +37,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
         seat_id: seat.id,
         passenger_name: name.trim(),
         passenger_email: email.trim(),
+        travel_date: travelDate,
         start_station_id: fromStation.id,
         end_station_id: toStation.id,
       }
@@ -70,6 +72,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
         seat_id: seat.id,
         passenger_name: name.trim(),
         passenger_email: email.trim(),
+        travel_date: travelDate,
         start_station_id: fromStation.id,
         end_station_id: toStation.id,
       }

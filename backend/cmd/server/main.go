@@ -88,7 +88,8 @@ func main() {
 			admin.GET("/revenue", adminHandler.GetRevenue)
 			admin.GET("/bookings", adminHandler.GetBookings)
 			admin.GET("/waitlist", adminHandler.GetWaitlist)
-			admin.DELETE("/bookings/:id", adminHandler.CancelBooking) // Admin cancel
+			admin.DELETE("/bookings/:id", adminHandler.CancelBooking) // Admin force cancel
+			admin.POST("/bookings/:id/process", adminHandler.ProcessCancellation) // Refund / Reschedule
 		}
 	}
 

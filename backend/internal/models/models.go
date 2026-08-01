@@ -26,9 +26,12 @@ const (
 type BookingStatus string
 
 const (
-	BookingStatusConfirmed  BookingStatus = "CONFIRMED"
-	BookingStatusCancelled  BookingStatus = "CANCELLED"
-	BookingStatusWaitlisted BookingStatus = "WAITLISTED"
+	BookingStatusConfirmed       BookingStatus = "CONFIRMED"
+	BookingStatusCancelled       BookingStatus = "CANCELLED"
+	BookingStatusWaitlisted      BookingStatus = "WAITLISTED"
+	BookingStatusCancelRequested BookingStatus = "CANCEL_REQUESTED"
+	BookingStatusRefunded        BookingStatus = "REFUNDED"
+	BookingStatusRescheduled     BookingStatus = "RESCHEDULED"
 )
 
 // Station represents a stop on the Colombo Fort–Badulla route.
@@ -84,6 +87,7 @@ type Booking struct {
 	SeatID             uint          `gorm:"not null;index" json:"seat_id"`
 	PassengerName      string        `gorm:"size:150;not null" json:"passenger_name"`
 	PassengerEmail     string        `gorm:"size:255;not null" json:"passenger_email"`
+	TravelDate         string        `gorm:"size:10;not null;index" json:"travel_date"`
 	StartStationOrder  int           `gorm:"not null" json:"start_station_order"`
 	EndStationOrder    int           `gorm:"not null" json:"end_station_order"`
 	StartStationID     uint          `gorm:"not null" json:"start_station_id"`
@@ -107,6 +111,7 @@ type WaitlistEntry struct {
 	SeatID            uint          `gorm:"not null;index" json:"seat_id"`
 	PassengerName     string        `gorm:"size:150;not null" json:"passenger_name"`
 	PassengerEmail    string        `gorm:"size:255;not null" json:"passenger_email"`
+	TravelDate        string        `gorm:"size:10;not null;index" json:"travel_date"`
 	StartStationOrder int           `gorm:"not null" json:"start_station_order"`
 	EndStationOrder   int           `gorm:"not null" json:"end_station_order"`
 	StartStationID    uint          `gorm:"not null" json:"start_station_id"`

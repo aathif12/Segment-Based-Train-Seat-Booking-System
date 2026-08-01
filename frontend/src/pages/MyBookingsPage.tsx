@@ -36,10 +36,10 @@ const MyBookingsPage: React.FC<MyBookingsPageProps> = ({ addToast }) => {
   }
 
   const handleCancel = async (id: number) => {
-    if (!window.confirm('Are you sure you want to cancel this booking?')) return
+    if (!window.confirm('Are you sure you want to request cancellation for this booking?')) return
     try {
       await cancelUserBooking(id)
-      addToast('Booking cancelled successfully', 'success')
+      addToast('Cancellation request submitted successfully', 'success')
       loadBookings()
     } catch (err: any) {
       addToast(err.response?.data?.error || 'Failed to cancel booking', 'error')
@@ -76,6 +76,7 @@ const MyBookingsPage: React.FC<MyBookingsPageProps> = ({ addToast }) => {
                   <tr>
                     <th>ID</th>
                     <th>Route</th>
+                    <th>Date</th>
                     <th>Seat</th>
                     <th>Status</th>
                     <th>Action</th>
@@ -91,25 +92,36 @@ const MyBookingsPage: React.FC<MyBookingsPageProps> = ({ addToast }) => {
                           Passenger: {b.passenger_name}
                         </div>
                       </td>
+                      <td>{b.travel_date}</td>
                       <td>Coach {b.seat.coach.name} - Seat {b.seat.seat_number}</td>
                       <td>
-                        <span className={`badge ${b.status === 'CONFIRMED' ? 'badge-reserved' : 'badge-unreserved'}`} style={{ 
-                          background: b.status === 'CANCELLED' ? 'rgba(235, 87, 87, 0.1)' : undefined,
-                          color: b.status === 'CANCELLED' ? 'var(--color-danger)' : undefined,
-                          border: b.status === 'CANCELLED' ? '1px solid rgba(235, 87, 87, 0.2)' : undefined
+                        <span className="badge" style={{ 
+                          background: (b.status === 'CANCELLED' || b.status === 'REFUNDED') ? 'rgba(235, 87, 87, 0.1)' : 
+                                      b.status === 'CANCEL_REQUESTED' ? 'rgba(245, 166, 35, 0.1)' :
+                                      b.status === 'RESCHEDULED' ? 'rgba(45, 156, 219, 0.1)' :
+                                      b.status === 'CONFIRMED' ? 'rgba(39, 174, 96, 0.1)' : 'rgba(255,255,255,0.05)',
+                          color: (b.status === 'CANCELLED' || b.status === 'REFUNDED') ? 'var(--color-danger)' : 
+                                 b.status === 'CANCEL_REQUESTED' ? 'var(--color-primary)' :
+                                 b.status === 'RESCHEDULED' ? '#2d9cdb' :
+                                 b.status === 'CONFIRMED' ? 'var(--color-success)' : 'var(--color-text-muted)',
+                          border: `1px solid ${
+                                 (b.status === 'CANCELLED' || b.status === 'REFUNDED') ? 'rgba(235, 87, 87, 0.2)' : 
+                                 b.status === 'CANCEL_REQUESTED' ? 'rgba(245, 166, 35, 0.2)' :
+                                 b.status === 'RESCHEDULED' ? 'rgba(45, 156, 219, 0.2)' :
+                                 b.status === 'CONFIRMED' ? 'rgba(39, 174, 96, 0.2)' : 'rgba(255,255,255,0.1)'}`
                         }}>
-                          {b.status}
+                          {b.status.replace('_', ' ')}
                         </span>
                       </td>
                       <td>
                         {b.status === 'CONFIRMED' && (
                           <button 
                             className="btn btn-outline" 
-                            style={{ padding: '6px 12px', color: 'var(--color-danger)', borderColor: 'rgba(235,87,87,0.3)' }}
+                            style={{ padding: '6px 12px', color: 'var(--color-danger)', borderColor: 'rgba(235,87,87,0.3)', fontSize: '0.8rem' }}
                             onClick={() => handleCancel(b.id)}
-                            title="Cancel Booking"
+                            title="Request Cancellation"
                           >
-                            <Trash2 size={16} />
+                            <Trash2 size={14} style={{ marginRight: 6 }} /> Cancel
                           </button>
                         )}
                       </td>

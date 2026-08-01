@@ -14,6 +14,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
   const [stations, setStations] = useState<Station[]>([])
   const [fromId, setFromId] = useState<string>('')
   const [toId, setToId] = useState<string>('')
+  const [travelDate, setTravelDate] = useState<string>(new Date().toISOString().split('T')[0])
   const [seats, setSeats] = useState<AvailableSeat[]>([])
   const [loadingStations, setLoadingStations] = useState(true)
   const [loadingSeats, setLoadingSeats] = useState(false)
@@ -48,7 +49,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
     setSearched(true)
     setSelectedSeat(null)
     try {
-      const data = await fetchAvailableSeats(fromStation.order_in_route, toStation.order_in_route)
+      const data = await fetchAvailableSeats(fromStation.order_in_route, toStation.order_in_route, travelDate)
       setSeats(data)
     } catch {
       addToast('Failed to fetch seat availability', 'error')
@@ -60,7 +61,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
   const handleBookingSuccess = () => {
     // Re-fetch availability after booking
     if (fromStation && toStation) {
-      fetchAvailableSeats(fromStation.order_in_route, toStation.order_in_route)
+      fetchAvailableSeats(fromStation.order_in_route, toStation.order_in_route, travelDate)
         .then(setSeats)
     }
   }
@@ -104,6 +105,18 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                 </div>
 
                 <div className="form-group">
+                  <label className="form-label" htmlFor="travel-date">Date</label>
+                  <input
+                    type="date"
+                    id="travel-date"
+                    className="form-input"
+                    value={travelDate}
+                    min={new Date().toISOString().split('T')[0]}
+                    onChange={e => setTravelDate(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group">
                   <label className="form-label" htmlFor="to-station">To</label>
                   <select
                     id="to-station"
@@ -141,7 +154,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                 display: 'flex', gap: 24, flexWrap: 'wrap',
                 fontSize: '0.88rem', color: 'var(--color-text-muted)'
               }}>
-                <span><MapPin size={14} style={{ display: 'inline', verticalAlign: 'text-bottom' }} /> {fromStation.name} → {toStation.name}</span>
+                <span><MapPin size={14} style={{ display: 'inline', verticalAlign: 'text-bottom' }} /> {fromStation.name} → {toStation.name} on {travelDate}</span>
                 <span><Ruler size={14} style={{ display: 'inline', verticalAlign: 'text-bottom' }} /> ~{Math.abs(toStation.distance_km - fromStation.distance_km)} km</span>
                 <span><Coins size={14} style={{ display: 'inline', verticalAlign: 'text-bottom' }} /> From LKR {(Math.abs(toStation.distance_km - fromStation.distance_km) * 3.5).toFixed(0)}</span>
                 {seats.length > 0 && (
@@ -178,6 +191,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
           seat={selectedSeat}
           fromStation={fromStation}
           toStation={toStation}
+          travelDate={travelDate}
           onClose={() => setSelectedSeat(null)}
           onSuccess={handleBookingSuccess}
           addToast={addToast}
