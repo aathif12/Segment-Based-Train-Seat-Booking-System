@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react'
-import { Settings, LogIn, TrendingUp, Users, AlertCircle, Trash2, Ticket, LogOut, List } from 'lucide-react'
-import { fetchOccupancy, fetchRevenue, fetchBookings, fetchWaitlist, setAuthCredentials, adminCancelBooking } from '../api/client'
-import type { CoachOccupancy, RevenueRecord, Booking, WaitlistEntry } from '../api/client'
+import { Settings, LogIn, TrendingUp, Users, AlertCircle, Trash2, Ticket, LogOut, List, Map, RefreshCcw, DollarSign } from 'lucide-react'
+import { fetchOccupancy, fetchRevenue, fetchBookings, fetchWaitlist, setAuthCredentials, adminCancelBooking, processCancellation, fetchAvailableSeats } from '../api/client'
+import type { CoachOccupancy, RevenueRecord, Booking, WaitlistEntry, AvailableSeat } from '../api/client'
 import type { ToastType } from '../components/Toast'
+import SeatMap from '../components/SeatMap'
 
 interface AdminPageProps {
   addToast: (msg: string, type?: ToastType) => void
@@ -14,12 +15,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
   const [password, setPassword] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'bookings' | 'waitlist'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'bookings' | 'waitlist' | 'seatmap'>('dashboard')
   
   const [occupancy, setOccupancy] = useState<CoachOccupancy[]>([])
   const [revenue, setRevenue] = useState<RevenueRecord[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([])
+  const [mapSeats, setMapSeats] = useState<AvailableSeat[]>([])
+  const [mapDate, setMapDate] = useState<string>(new Date().toISOString().split('T')[0])
   const [loading, setLoading] = useState(false)
 
   const loadDashboardData = async () => {
@@ -57,11 +60,26 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
         loadDashboardData().finally(() => setLoading(false))
       } else if (activeTab === 'bookings') {
         loadBookings().finally(() => setLoading(false))
+      } else if (activeTab === 'seatmap') {
+        loadSeatMap()
       } else {
         loadWaitlist().finally(() => setLoading(false))
       }
     }
-  }, [isAuthenticated, activeTab])
+  }, [isAuthenticated, activeTab, mapDate])
+
+  const loadSeatMap = async () => {
+    setLoading(true)
+    try {
+      // 0 to 100 as dummy max orders to cover entire route
+      const seats = await fetchAvailableSeats(0, 100, mapDate)
+      setMapSeats(seats)
+    } catch {
+      addToast('Failed to load seat map', 'error')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -86,13 +104,23 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
   }
 
   const handleCancelBooking = async (id: number) => {
-    if (!window.confirm('Are you sure you want to cancel this booking?')) return
+    if (!window.confirm('Are you sure you want to force cancel this booking?')) return
     try {
       await adminCancelBooking(id)
       addToast('Booking cancelled successfully', 'success')
       loadBookings() // refresh list
     } catch {
       addToast('Failed to cancel booking', 'error')
+    }
+  }
+
+  const handleProcessCancellation = async (id: number, action: 'refund' | 'reschedule') => {
+    try {
+      await processCancellation(id, action)
+      addToast(`Booking ${action}ed successfully`, 'success')
+      loadBookings() // refresh list
+    } catch (err: any) {
+      addToast(err.response?.data?.error || `Failed to ${action} booking`, 'error')
     }
   }
 
@@ -185,6 +213,12 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
             onClick={() => setActiveTab('waitlist')}
           >
             <List size={18} /> Waitlist
+          </button>
+          <button 
+            className={`btn ${activeTab === 'seatmap' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setActiveTab('seatmap')}
+          >
+            <Map size={18} /> Seat Map
           </button>
         </div>
 
@@ -305,6 +339,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                       <th>ID</th>
                       <th>Passenger</th>
                       <th>Route</th>
+                      <th>Date</th>
                       <th>Seat</th>
                       <th>Status</th>
                       <th>Action</th>
@@ -319,26 +354,60 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                           <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{b.passenger_email}</div>
                         </td>
                         <td>{b.start_station.name} → {b.end_station.name}</td>
+                        <td>{b.travel_date}</td>
                         <td>Coach {b.seat.coach.name} - Seat {b.seat.seat_number}</td>
                         <td>
-                          <span className={`badge ${b.status === 'CONFIRMED' ? 'badge-reserved' : 'badge-unreserved'}`} style={{ 
-                            background: b.status === 'CANCELLED' ? 'rgba(235, 87, 87, 0.1)' : undefined,
-                            color: b.status === 'CANCELLED' ? 'var(--color-danger)' : undefined,
-                            border: b.status === 'CANCELLED' ? '1px solid rgba(235, 87, 87, 0.2)' : undefined
+                          <span className="badge" style={{ 
+                            background: (b.status === 'CANCELLED' || b.status === 'REFUNDED') ? 'rgba(235, 87, 87, 0.1)' : 
+                                        b.status === 'CANCEL_REQUESTED' ? 'rgba(245, 166, 35, 0.1)' :
+                                        b.status === 'RESCHEDULED' ? 'rgba(45, 156, 219, 0.1)' :
+                                        b.status === 'CONFIRMED' ? 'rgba(39, 174, 96, 0.1)' : 'rgba(255,255,255,0.05)',
+                            color: (b.status === 'CANCELLED' || b.status === 'REFUNDED') ? 'var(--color-danger)' : 
+                                   b.status === 'CANCEL_REQUESTED' ? 'var(--color-primary)' :
+                                   b.status === 'RESCHEDULED' ? '#2d9cdb' :
+                                   b.status === 'CONFIRMED' ? 'var(--color-success)' : 'var(--color-text-muted)',
+                            border: `1px solid ${
+                                   (b.status === 'CANCELLED' || b.status === 'REFUNDED') ? 'rgba(235, 87, 87, 0.2)' : 
+                                   b.status === 'CANCEL_REQUESTED' ? 'rgba(245, 166, 35, 0.2)' :
+                                   b.status === 'RESCHEDULED' ? 'rgba(45, 156, 219, 0.2)' :
+                                   b.status === 'CONFIRMED' ? 'rgba(39, 174, 96, 0.2)' : 'rgba(255,255,255,0.1)'}`
                           }}>
-                            {b.status}
+                            {b.status.replace('_', ' ')}
                           </span>
                         </td>
                         <td>
-                          {b.status === 'CONFIRMED' && (
-                            <button 
-                              className="btn btn-outline" 
-                              style={{ padding: '6px 12px', color: 'var(--color-danger)', borderColor: 'rgba(235,87,87,0.3)' }}
-                              onClick={() => handleCancelBooking(b.id)}
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          )}
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            {b.status === 'CANCEL_REQUESTED' && (
+                              <>
+                                <button 
+                                  className="btn btn-outline" 
+                                  style={{ padding: '4px 8px', color: 'var(--color-success)', borderColor: 'rgba(39,174,96,0.3)', fontSize: '0.8rem' }}
+                                  onClick={() => handleProcessCancellation(b.id, 'refund')}
+                                  title="Approve and Refund"
+                                >
+                                  <DollarSign size={14} style={{ marginRight: 4 }} /> Refund
+                                </button>
+                                <button 
+                                  className="btn btn-outline" 
+                                  style={{ padding: '4px 8px', color: '#2d9cdb', borderColor: 'rgba(45,156,219,0.3)', fontSize: '0.8rem' }}
+                                  onClick={() => handleProcessCancellation(b.id, 'reschedule')}
+                                  title="Approve and Reschedule"
+                                >
+                                  <RefreshCcw size={14} style={{ marginRight: 4 }} /> Reschedule
+                                </button>
+                              </>
+                            )}
+                            {(b.status === 'CONFIRMED' || b.status === 'CANCEL_REQUESTED') && (
+                              <button 
+                                className="btn btn-outline" 
+                                style={{ padding: '4px 8px', color: 'var(--color-danger)', borderColor: 'rgba(235,87,87,0.3)' }}
+                                onClick={() => handleCancelBooking(b.id)}
+                                title="Force Cancel"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -363,6 +432,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                       <th>ID</th>
                       <th>Passenger</th>
                       <th>Route</th>
+                      <th>Date</th>
                       <th>Target Seat</th>
                       <th>Status</th>
                     </tr>
@@ -376,6 +446,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                           <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{w.passenger_email}</div>
                         </td>
                         <td>{w.start_station.name} → {w.end_station.name}</td>
+                        <td>{w.travel_date}</td>
                         <td>Coach {w.seat.coach.name} - Seat {w.seat.seat_number}</td>
                         <td>
                           <span className={`badge ${w.status === 'CONFIRMED' ? 'badge-reserved' : 'badge-unreserved'}`} style={{ 
@@ -392,6 +463,31 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                 </table>
               </div>
             )}
+          </div>
+        ) : (
+          <div className="fade-up">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <Map size={24} color="var(--color-primary)" /> Full Route Seat Map
+              </h2>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <label className="form-label" style={{ marginBottom: 0 }}>Date:</label>
+                <input
+                  type="date"
+                  className="form-input"
+                  style={{ width: 'auto' }}
+                  value={mapDate}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={e => setMapDate(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            <SeatMap
+              seats={mapSeats}
+              selectedSeatId={null}
+              onSelect={() => {}}
+            />
           </div>
         )}
       </div>

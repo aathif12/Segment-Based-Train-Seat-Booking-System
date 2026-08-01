@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import { Train, TrainFront, CheckCircle2, Circle, XCircle } from 'lucide-react'
 import type { AvailableSeat } from '../api/client'
 
 interface SeatMapProps {
@@ -30,7 +31,7 @@ const SeatMap: React.FC<SeatMapProps> = ({ seats, selectedSeatId, onSelect }) =>
   if (coachNames.length === 0) {
     return (
       <div className="empty-state">
-        <div className="icon">🚂</div>
+        <div className="icon"><Train size={48} color="var(--color-text-muted)" /></div>
         <h3>No seats found</h3>
         <p>Try selecting a different route segment.</p>
       </div>
@@ -84,7 +85,7 @@ const SeatMap: React.FC<SeatMapProps> = ({ seats, selectedSeatId, onSelect }) =>
           borderBottom: '1px solid var(--color-border)',
           display: 'flex', alignItems: 'center', gap: 12
         }}>
-          <span style={{ fontSize: '1.2rem' }}>🚃</span>
+          <TrainFront size={20} color="var(--color-primary)" />
           <span style={{ fontWeight: 600, color: 'var(--color-primary)' }}>Coach {current}</span>
           <span className="badge badge-reserved">Reserved</span>
           <span style={{ marginLeft: 'auto', fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>
@@ -117,7 +118,11 @@ const SeatMap: React.FC<SeatMapProps> = ({ seats, selectedSeatId, onSelect }) =>
                   aria-pressed={isSelected}
                 >
                   <span className="seat-icon">
-                    {seat.is_available ? (isSelected ? '🟡' : '💺') : '🔴'}
+                    {seat.is_available ? (
+                      isSelected ? <CheckCircle2 size={24} color="var(--color-primary)" /> : <Circle size={24} color="var(--color-text-muted)" />
+                    ) : (
+                      <XCircle size={24} color="var(--color-danger)" />
+                    )}
                   </span>
                   <span>{seat.seat_number}</span>
                 </div>
