@@ -99,6 +99,7 @@ func main() {
 			admin.DELETE("/bookings/:id", adminHandler.CancelBooking) // Admin force cancel
 			admin.POST("/bookings/:id/process", adminHandler.ProcessCancellation) // Refund / Reschedule
 			admin.POST("/waitlist/:id/assign", adminHandler.AssignWaitlistSeat)   // Assign seat to waitlist entry
+			admin.DELETE("/waitlist/:id", adminHandler.CancelWaitlistEntry)       // Cancel waitlist entry
 		}
 	}
 

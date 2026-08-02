@@ -205,4 +205,7 @@ export const assignWaitlistSeat = (entryId: number, newSeatId: number, newTrainS
     new_train_schedule_id: newTrainScheduleId,
   }).then(r => r.data)
 
+export const adminCancelWaitlistEntry = (id: number) =>
+  api.delete<{ message: string }>(`/admin/waitlist/${id}`).then(r => r.data)
+
 export default api

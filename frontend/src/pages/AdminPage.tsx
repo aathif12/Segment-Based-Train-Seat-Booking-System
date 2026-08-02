@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Settings, LogIn, TrendingUp, Users, AlertCircle, Trash2, Ticket, LogOut, List, Map, RefreshCcw, DollarSign } from 'lucide-react'
-import { fetchOccupancy, fetchRevenue, fetchBookings, fetchWaitlist, setAuthCredentials, adminCancelBooking, processCancellation, fetchAvailableSeats, fetchTrainSchedules } from '../api/client'
-import type { CoachOccupancy, RevenueRecord, Booking, WaitlistEntry, AvailableSeat, TrainSchedule } from '../api/client'
+import { fetchOccupancy, fetchRevenue, fetchBookings, fetchWaitlist, setAuthCredentials, adminCancelBooking, processCancellation, adminCancelWaitlistEntry, fetchTrainSchedules, fetchAvailableSeats } from '../api/client'
+import type { CoachOccupancy, RevenueRecord, Booking, WaitlistEntry, TrainSchedule, AvailableSeat } from '../api/client'
 import type { ToastType } from '../components/Toast'
 import SeatMap from '../components/SeatMap'
 import AdminRescheduleModal from '../components/AdminRescheduleModal'
@@ -136,6 +136,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
     }
   }
 
+  const handleCancelWaitlistEntry = async (id: number) => {
+    if (!window.confirm('Are you sure you want to cancel this waitlist entry?')) return
+    try {
+      await adminCancelWaitlistEntry(id)
+      addToast('Waitlist entry cancelled successfully', 'success')
+      loadWaitlist() // refresh list
+    } catch {
+      addToast('Failed to cancel waitlist entry', 'error')
+    }
+  }
+
   const handleProcessCancellation = async (id: number, action: 'refund' | 'reschedule' | 'reject') => {
     try {
       await processCancellation(id, action)
@@ -215,6 +226,36 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
             <LogOut size={18} />
           </button>
         </div>
+
+        {/* Notifications Banner */}
+        {(() => {
+          const refundReqs = bookings.filter(b => b.status === 'REFUND_REQUESTED').length
+          const rescheduleReqs = bookings.filter(b => b.status === 'RESCHEDULE_REQUESTED').length
+          if (refundReqs === 0 && rescheduleReqs === 0) return null
+          
+          return (
+            <div style={{
+              background: 'rgba(242, 153, 74, 0.15)',
+              border: '1px solid rgba(242, 153, 74, 0.4)',
+              borderRadius: 12,
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              cursor: 'pointer',
+              marginBottom: 24
+            }} onClick={() => setActiveTab('bookings')}>
+              <AlertCircle size={20} color="#F2994A" />
+              <div style={{ color: '#F2994A', fontSize: '0.95rem', fontWeight: 500 }}>
+                You have {refundReqs + rescheduleReqs} pending user request{refundReqs + rescheduleReqs > 1 ? 's' : ''} (
+                {refundReqs > 0 && `${refundReqs} refund${refundReqs > 1 ? 's' : ''}`}
+                {refundReqs > 0 && rescheduleReqs > 0 && ' and '}
+                {rescheduleReqs > 0 && `${rescheduleReqs} reschedule${rescheduleReqs > 1 ? 's' : ''}`}). 
+                Click here to review them.
+              </div>
+            </div>
+          )
+        })()}
 
         {/* ── Tabs ─────────────────────────────────────────────────── */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 40, borderBottom: '1px solid rgba(0,0,0,0.1)', paddingBottom: 16 }}>
@@ -511,15 +552,30 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                           </span>
                         </td>
                         <td>
-                          {w.status === 'WAITLISTED' && (
-                            <button
-                              className="btn btn-outline"
-                              style={{ padding: '4px 10px', color: 'var(--color-primary)', borderColor: 'rgba(var(--color-primary-rgb),0.3)', fontSize: '0.8rem' }}
-                              onClick={() => setAssignModalEntry(w)}
-                            >
-                              Assign Seat
-                            </button>
-                          )}
+                          {(() => {
+                            const isExpired = new Date(w.travel_date) < new Date(new Date().toISOString().split('T')[0])
+                            
+                            return w.status === 'WAITLISTED' && (
+                              <div style={{ display: 'flex', gap: 8 }}>
+                                {!isExpired && (
+                                  <button
+                                    className="btn btn-outline"
+                                    style={{ padding: '4px 10px', color: 'var(--color-primary)', borderColor: 'rgba(var(--color-primary-rgb),0.3)', fontSize: '0.8rem' }}
+                                    onClick={() => setAssignModalEntry(w)}
+                                  >
+                                    Assign Seat
+                                  </button>
+                                )}
+                                <button
+                                  className="btn btn-outline"
+                                  style={{ padding: '4px 10px', color: 'var(--color-error)', borderColor: 'rgba(var(--color-error-rgb),0.3)', fontSize: '0.8rem' }}
+                                  onClick={() => handleCancelWaitlistEntry(w.id)}
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            )
+                          })()}
                         </td>
                       </tr>
                     ))}

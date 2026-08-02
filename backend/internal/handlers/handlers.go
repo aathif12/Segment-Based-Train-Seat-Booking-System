@@ -352,3 +352,20 @@ func (h *AdminHandler) AssignWaitlistSeat(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Waitlist entry promoted to confirmed booking"})
 }
+
+// CancelWaitlistEntry cancels a waitlist entry.
+// DELETE /api/admin/waitlist/:id
+func (h *AdminHandler) CancelWaitlistEntry(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid waitlist entry id"})
+		return
+	}
+
+	if err := h.svc.AdminCancelWaitlistEntry(uint(id)); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Waitlist entry cancelled successfully"})
+}

@@ -472,6 +472,21 @@ func (s *BookingService) AdminAssignWaitlistSeat(entryID uint, newSeatID uint, n
 	})
 }
 
+// AdminCancelWaitlistEntry allows an admin to cancel a waitlist entry.
+func (s *BookingService) AdminCancelWaitlistEntry(id uint) error {
+	var entry models.WaitlistEntry
+	if err := s.db.First(&entry, id).Error; err != nil {
+		return fmt.Errorf("waitlist entry not found: %w", err)
+	}
+	
+	if entry.Status != models.BookingStatusWaitlisted {
+		return errors.New("only waitlisted entries can be cancelled")
+	}
+
+	entry.Status = models.BookingStatusCancelled
+	return s.db.Save(&entry).Error
+}
+
 // GetBookingByID fetches a single booking with all associations.
 func (s *BookingService) GetBookingByID(id uint) (*models.Booking, error) {
 	var booking models.Booking
