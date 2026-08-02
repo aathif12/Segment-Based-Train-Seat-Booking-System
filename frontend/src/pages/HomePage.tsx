@@ -296,6 +296,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
               loading={loadingSchedules}
               error={scheduleError}
               selectedId={selectedTrain?.id ?? null}
+              travelDate={travelDate}
               onSelect={handleTrainSelect}
             />
           </div>

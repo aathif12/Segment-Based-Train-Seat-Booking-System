@@ -720,7 +720,96 @@ a:hover { color: var(--color-accent); }
 
 .train-card--selected::before { opacity: 1; }
 
-/* Selected badge */
+/* ── Closed state ──────────────────────────────────────────────── */
+.train-card--closed {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: saturate(0.3);
+}
+
+.train-card--closed:hover {
+  transform: none;
+  box-shadow: var(--shadow-glass);
+  border-color: var(--color-border);
+  background: var(--color-surface);
+}
+
+.train-card--closed::before { opacity: 0 !important; }
+
+/* ── Warn (closing soon) state ─────────────────────────────────── */
+.train-card--warn {
+  border-color: rgba(245,158,11,0.35);
+  box-shadow: 0 0 0 1px rgba(245,158,11,0.2);
+}
+
+.train-card--warn::before {
+  background: #f59e0b;
+  opacity: 1;
+}
+
+/* ── Status overlay (Booking Closed / Closes Soon) ─────────────── */
+.train-card__status-overlay {
+  position: absolute;
+  top: 14px; right: 14px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  letter-spacing: 0.03em;
+  pointer-events: none;
+}
+
+.train-card__status-overlay--closed {
+  background: rgba(239,68,68,0.14);
+  border: 1px solid rgba(239,68,68,0.30);
+  color: #ef4444;
+}
+
+.train-card__status-overlay--warn {
+  background: rgba(245,158,11,0.14);
+  border: 1px solid rgba(245,158,11,0.30);
+  color: #f59e0b;
+}
+
+.train-card__status-sub {
+  opacity: 0.75;
+  font-weight: 500;
+  margin-left: 4px;
+}
+
+/* ── Closed footer message ─────────────────────────────────────── */
+.train-card__closed-msg {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.78rem;
+  color: var(--color-text-faint);
+  padding: 6px 0;
+  font-style: italic;
+}
+
+/* ── Booking cutoff notice bar ─────────────────────────────────── */
+.booking-cutoff-notice {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 24px;
+  padding: 10px 16px;
+  background: rgba(59,130,246,0.06);
+  border: 1px solid rgba(59,130,246,0.20);
+  border-radius: var(--radius-md);
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+.booking-cutoff-notice strong {
+  color: var(--color-text-primary);
+}
+
+
 .train-card__selected-badge {
   position: absolute;
   top: 14px; right: 14px;
