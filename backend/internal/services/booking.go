@@ -214,6 +214,10 @@ func (s *BookingService) AdminProcessCancellation(bookingID uint, action string)
 			return errors.New("booking is not in a cancellable state")
 		}
 
+		if booking.TravelDate < time.Now().Format("2006-01-02") {
+			return errors.New("cannot cancel a booking for a train that has already departed")
+		}
+
 		switch action {
 		case "refund":
 			booking.Status = models.BookingStatusRefunded
