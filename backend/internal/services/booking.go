@@ -180,9 +180,8 @@ func (s *BookingService) Book(req BookingRequest) (*models.Booking, error) {
 	return booking, nil
 }
 
-// Cancel requests a cancellation for a booking. It changes the status to CANCEL_REQUESTED.
-// The seat is NOT freed until an admin processes the cancellation.
-func (s *BookingService) Cancel(bookingID uint) error {
+// RequestChange requests a refund or reschedule for a booking.
+func (s *BookingService) RequestChange(bookingID uint, action string, requestedDate string) error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
 		var booking models.Booking
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
@@ -191,10 +190,21 @@ func (s *BookingService) Cancel(bookingID uint) error {
 		}
 
 		if booking.Status != models.BookingStatusConfirmed {
-			return errors.New("only confirmed bookings can be cancelled")
+			return errors.New("only confirmed bookings can be modified")
 		}
 
-		booking.Status = models.BookingStatusCancelRequested
+		if action == "refund" {
+			booking.Status = models.BookingStatusRefundRequested
+		} else if action == "reschedule" {
+			if requestedDate == "" {
+				return errors.New("requested date is required for reschedule")
+			}
+			booking.Status = models.BookingStatusRescheduleRequested
+			booking.RequestedTravelDate = requestedDate
+		} else {
+			return errors.New("invalid action")
+		}
+
 		if err := tx.Save(&booking).Error; err != nil {
 			return err
 		}
@@ -203,41 +213,95 @@ func (s *BookingService) Cancel(bookingID uint) error {
 	})
 }
 
-// AdminProcessCancellation processes a user's cancellation request, or forces a cancellation.
-// action can be "refund", "reschedule", or "cancel".
-func (s *BookingService) AdminProcessCancellation(bookingID uint, action string) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
-		var booking models.Booking
+// AdminProcessCancellation processes a user's refund or reschedule request, or forces a cancellation.
+// action can be "refund", "reschedule", "reject" or "cancel".
+func (s *BookingService) AdminProcessCancellation(bookingID uint, action string, newDate string, newSeatID uint, newTrainScheduleID uint) error {
+	var originalBooking models.Booking
+	var freedBooking models.Booking
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			First(&booking, bookingID).Error; err != nil {
+			First(&originalBooking, bookingID).Error; err != nil {
 			return fmt.Errorf("booking not found: %w", err)
 		}
+		
+		freedBooking = originalBooking // Copy to use for waitlist promotion
 
-		if booking.Status != models.BookingStatusConfirmed && booking.Status != models.BookingStatusCancelRequested {
-			return errors.New("booking is not in a cancellable state")
+		// Reverting a rejected request
+		if action == "reject" {
+			originalBooking.Status = models.BookingStatusConfirmed
+			return tx.Save(&originalBooking).Error
 		}
 
-		if booking.TravelDate < time.Now().Format("2006-01-02") {
-			return errors.New("cannot cancel a booking for a train that has already departed")
+		if originalBooking.TravelDate < time.Now().Format("2006-01-02") {
+			return errors.New("cannot modify a booking for a train that has already departed")
 		}
 
-		switch action {
-		case "refund":
-			booking.Status = models.BookingStatusRefunded
-		case "reschedule":
-			booking.Status = models.BookingStatusRescheduled
-		default:
-			booking.Status = models.BookingStatusCancelled
-		}
-		if err := tx.Save(&booking).Error; err != nil {
-			return err
-		}
+		if action == "refund" || action == "cancel" {
+			originalBooking.Status = models.BookingStatusRefunded
+			if action == "cancel" {
+				originalBooking.Status = models.BookingStatusCancelled
+			}
+			if err := tx.Save(&originalBooking).Error; err != nil {
+				return err
+			}
+		} else if action == "reschedule" {
+			// Validate new parameters
+			if newDate == "" || newSeatID == 0 || newTrainScheduleID == 0 {
+				return errors.New("new date, seat id, and train schedule id are required for reschedule")
+			}
 
-		// Attempt waitlist promotion in a goroutine so the cancel response is fast.
-		go s.promoteWaitlist(booking)
+			// Lock the new seat to check for conflicts
+			var newSeat models.Seat
+			if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+				Preload("Coach").First(&newSeat, newSeatID).Error; err != nil {
+				return fmt.Errorf("new seat not found: %w", err)
+			}
+
+			if newSeat.Coach.Type != models.CoachTypeReserved {
+				return errors.New("only reserved coach seats can be booked")
+			}
+
+			var conflictCount int64
+			tx.Model(&models.Booking{}).
+				Where(`seat_id = ? AND travel_date = ? AND train_schedule_id = ? AND status = ? AND start_station_order < ? AND end_station_order > ?`,
+					newSeat.ID,
+					newDate,
+					newTrainScheduleID,
+					models.BookingStatusConfirmed,
+					originalBooking.EndStationOrder,
+					originalBooking.StartStationOrder,
+				).Count(&conflictCount)
+
+			if conflictCount > 0 {
+				return ErrSegmentConflict
+			}
+
+			originalBooking.Status = models.BookingStatusConfirmed
+			originalBooking.TravelDate = newDate
+			originalBooking.SeatID = newSeat.ID
+			originalBooking.TrainScheduleID = newTrainScheduleID
+			originalBooking.RequestedTravelDate = "" // Clear the request
+
+			if err := tx.Save(&originalBooking).Error; err != nil {
+				return err
+			}
+		} else {
+			return errors.New("invalid action")
+		}
 
 		return nil
 	})
+
+	if err != nil {
+		return err
+	}
+
+	if action != "reject" {
+		go s.promoteWaitlist(freedBooking)
+	}
+	
+	return nil
 }
 
 // promoteWaitlist finds the oldest waitlist entry whose segment fits within the

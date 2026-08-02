@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
   Train, Clock, Users, Zap, Moon, Sun,
-  ChevronRight, CheckCircle2, AlertCircle, Lock, AlertTriangle,
+  ChevronRight, AlertCircle, Lock, AlertTriangle,
 } from 'lucide-react'
 import type { TrainSchedule } from '../api/client'
 

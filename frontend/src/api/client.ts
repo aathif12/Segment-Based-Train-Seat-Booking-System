@@ -61,8 +61,9 @@ export interface Booking {
   start_station_id: number
   end_station_id: number
   fare: number
-  status: 'CONFIRMED' | 'CANCELLED' | 'WAITLISTED' | 'CANCEL_REQUESTED' | 'REFUNDED' | 'RESCHEDULED'
+  status: 'CONFIRMED' | 'CANCELLED' | 'WAITLISTED' | 'CANCEL_REQUESTED' | 'REFUNDED' | 'RESCHEDULED' | 'REFUND_REQUESTED' | 'RESCHEDULE_REQUESTED'
   travel_date: string
+  requested_travel_date?: string
   created_at: string
   seat: Seat
   start_station: Station
@@ -155,8 +156,8 @@ export const fetchAvailableSeats = (fromOrder: number, toOrder: number, date: st
 export const createBooking = (req: BookingRequest) =>
   api.post<{ data: Booking; message: string }>('/bookings', req).then(r => r.data)
 
-export const cancelUserBooking = (id: number) =>
-  api.delete<{ message: string }>(`/user/bookings/${id}`).then(r => r.data)
+export const requestBookingChange = (id: number, action: 'refund' | 'reschedule', requestedDate?: string) =>
+  api.post<{ message: string }>(`/user/bookings/${id}/request`, { action, requested_date: requestedDate }).then(r => r.data)
 
 export const fetchBooking = (id: number) =>
   api.get<{ data: Booking }>(`/bookings/${id}`).then(r => r.data.data)
@@ -190,7 +191,12 @@ export const fetchWaitlist = () =>
 export const adminCancelBooking = (id: number) =>
   api.delete<{ message: string }>(`/admin/bookings/${id}`).then(r => r.data)
 
-export const processCancellation = (id: number, action: 'refund' | 'reschedule') =>
-  api.post<{ message: string }>(`/admin/bookings/${id}/process`, { action }).then(r => r.data)
+export const processCancellation = (id: number, action: 'refund' | 'reschedule' | 'reject' | 'cancel', newDate?: string, newSeatId?: number, newTrainScheduleId?: number) =>
+  api.post<{ message: string }>(`/admin/bookings/${id}/process`, { 
+    action, 
+    new_date: newDate, 
+    new_seat_id: newSeatId, 
+    new_train_schedule_id: newTrainScheduleId 
+  }).then(r => r.data)
 
 export default api

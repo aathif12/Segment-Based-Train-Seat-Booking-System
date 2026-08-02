@@ -30,8 +30,10 @@ const (
 	BookingStatusCancelled       BookingStatus = "CANCELLED"
 	BookingStatusWaitlisted      BookingStatus = "WAITLISTED"
 	BookingStatusCancelRequested BookingStatus = "CANCEL_REQUESTED"
-	BookingStatusRefunded        BookingStatus = "REFUNDED"
-	BookingStatusRescheduled     BookingStatus = "RESCHEDULED"
+	BookingStatusRefunded            BookingStatus = "REFUNDED"
+	BookingStatusRescheduled         BookingStatus = "RESCHEDULED"
+	BookingStatusRefundRequested     BookingStatus = "REFUND_REQUESTED"
+	BookingStatusRescheduleRequested BookingStatus = "RESCHEDULE_REQUESTED"
 )
 
 // Station represents a stop on the Colombo Fort–Badulla route.
@@ -94,7 +96,8 @@ type Booking struct {
 	EndStationID       uint          `gorm:"not null" json:"end_station_id"`
 	TrainScheduleID    uint          `gorm:"not null;index;default:1" json:"train_schedule_id"`
 	Fare               float64       `gorm:"not null;default:0" json:"fare"`
-	Status             BookingStatus `gorm:"size:20;not null;default:'CONFIRMED'" json:"status"`
+	Status             BookingStatus `gorm:"size:25;not null;default:'CONFIRMED'" json:"status"`
+	RequestedTravelDate string       `gorm:"size:10" json:"requested_travel_date,omitempty"`
 	CreatedAt          time.Time     `json:"created_at"`
 	UpdatedAt          time.Time     `json:"updated_at"`
 

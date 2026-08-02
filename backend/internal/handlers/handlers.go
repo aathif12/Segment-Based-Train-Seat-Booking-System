@@ -159,12 +159,21 @@ func (h *BookingHandler) GetUserBookings(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"data": bookings})
 }
 
-// CancelBooking cancels a confirmed booking if owned by the user.
-// DELETE /api/bookings/:id
-func (h *BookingHandler) CancelBooking(c *gin.Context) {
+// RequestChange handles a user's request for refund or reschedule.
+// POST /api/user/bookings/:id/request
+func (h *BookingHandler) RequestChange(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid booking id"})
+		return
+	}
+
+	var req struct {
+		Action        string `json:"action" binding:"required"`
+		RequestedDate string `json:"requested_date"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
@@ -181,16 +190,16 @@ func (h *BookingHandler) CancelBooking(c *gin.Context) {
 	}
 
 	if booking.UserID == nil || *booking.UserID != uid.(uint) {
-		c.JSON(http.StatusForbidden, gin.H{"error": "you do not have permission to cancel this booking"})
+		c.JSON(http.StatusForbidden, gin.H{"error": "you do not have permission to modify this booking"})
 		return
 	}
 
-	if err := h.svc.Cancel(uint(id)); err != nil {
+	if err := h.svc.RequestChange(uint(id), req.Action, req.RequestedDate); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Booking cancelled successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Request submitted successfully"})
 }
 
 // AddToWaitlist adds a passenger to the waitlist for a fully-booked segment.
@@ -282,7 +291,7 @@ func (h *AdminHandler) CancelBooking(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.AdminProcessCancellation(uint(id), "cancel"); err != nil {
+	if err := h.svc.AdminProcessCancellation(uint(id), "cancel", "", 0, 0); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -300,17 +309,20 @@ func (h *AdminHandler) ProcessCancellation(c *gin.Context) {
 	}
 
 	var req struct {
-		Action string `json:"action" binding:"required"`
+		Action          string `json:"action" binding:"required"`
+		NewDate         string `json:"new_date"`
+		NewSeatID       uint   `json:"new_seat_id"`
+		NewTrainSchedID uint   `json:"new_train_schedule_id"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.svc.AdminProcessCancellation(uint(id), req.Action); err != nil {
+	if err := h.svc.AdminProcessCancellation(uint(id), req.Action, req.NewDate, req.NewSeatID, req.NewTrainSchedID); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Cancellation processed successfully"})
+	c.JSON(http.StatusOK, gin.H{"message": "Request processed successfully"})
 }

@@ -110,7 +110,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
 
   const handleBookingSuccess = () => {
     if (fromStation && toStation && selectedTrain) {
-      fetchAvailableSeats(fromStation.order_in_route, toStation.order_in_route, travelDate)
+      fetchAvailableSeats(fromStation.order_in_route, toStation.order_in_route, travelDate, selectedTrain.id)
         .then(setSeats)
       // Also refresh schedules to reflect updated seat count
       fetchTrainSchedules(travelDate).then(setSchedules).catch(() => {})

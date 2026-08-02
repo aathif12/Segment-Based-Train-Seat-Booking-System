@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
-import { Ticket, Trash2 } from 'lucide-react'
-import { fetchUserBookings, cancelUserBooking } from '../api/client'
+import { Ticket } from 'lucide-react'
+import { fetchUserBookings, requestBookingChange } from '../api/client'
 import type { Booking } from '../api/client'
 import type { ToastType } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
@@ -13,6 +13,8 @@ interface MyBookingsPageProps {
 const MyBookingsPage: React.FC<MyBookingsPageProps> = ({ addToast }) => {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [loading, setLoading] = useState(true)
+  const [rescheduleBookingId, setRescheduleBookingId] = useState<number | null>(null)
+  const [rescheduleDate, setRescheduleDate] = useState<string>(new Date().toISOString().split('T')[0])
   const { user } = useAuth()
   const navigate = useNavigate()
 
@@ -35,14 +37,29 @@ const MyBookingsPage: React.FC<MyBookingsPageProps> = ({ addToast }) => {
     }
   }
 
-  const handleCancel = async (id: number) => {
-    if (!window.confirm('Are you sure you want to request cancellation for this booking?')) return
+  const handleRefundRequest = async (id: number) => {
+    if (!window.confirm('Are you sure you want to request a refund for this booking?')) return
     try {
-      await cancelUserBooking(id)
-      addToast('Cancellation request submitted successfully', 'success')
+      await requestBookingChange(id, 'refund')
+      addToast('Refund request submitted successfully', 'success')
       loadBookings()
     } catch (err: any) {
-      addToast(err.response?.data?.error || 'Failed to cancel booking', 'error')
+      addToast(err.response?.data?.error || 'Failed to request refund', 'error')
+    }
+  }
+
+  const handleRescheduleRequest = async (id: number) => {
+    if (!rescheduleDate) {
+      addToast('Please select a new date', 'error')
+      return
+    }
+    try {
+      await requestBookingChange(id, 'reschedule', rescheduleDate)
+      addToast('Reschedule request submitted successfully', 'success')
+      setRescheduleBookingId(null)
+      loadBookings()
+    } catch (err: any) {
+      addToast(err.response?.data?.error || 'Failed to request reschedule', 'error')
     }
   }
 
@@ -97,32 +114,63 @@ const MyBookingsPage: React.FC<MyBookingsPageProps> = ({ addToast }) => {
                       <td>
                         <span className="badge" style={{ 
                           background: (b.status === 'CANCELLED' || b.status === 'REFUNDED') ? 'rgba(235, 87, 87, 0.1)' : 
-                                      b.status === 'CANCEL_REQUESTED' ? 'rgba(245, 166, 35, 0.1)' :
+                                      b.status.includes('REQUESTED') ? 'rgba(245, 166, 35, 0.1)' :
                                       b.status === 'RESCHEDULED' ? 'rgba(45, 156, 219, 0.1)' :
                                       b.status === 'CONFIRMED' ? 'rgba(39, 174, 96, 0.1)' : 'rgba(255,255,255,0.05)',
                           color: (b.status === 'CANCELLED' || b.status === 'REFUNDED') ? 'var(--color-danger)' : 
-                                 b.status === 'CANCEL_REQUESTED' ? 'var(--color-primary)' :
+                                 b.status.includes('REQUESTED') ? 'var(--color-primary)' :
                                  b.status === 'RESCHEDULED' ? '#2d9cdb' :
                                  b.status === 'CONFIRMED' ? 'var(--color-success)' : 'var(--color-text-muted)',
                           border: `1px solid ${
                                  (b.status === 'CANCELLED' || b.status === 'REFUNDED') ? 'rgba(235, 87, 87, 0.2)' : 
-                                 b.status === 'CANCEL_REQUESTED' ? 'rgba(245, 166, 35, 0.2)' :
+                                 b.status.includes('REQUESTED') ? 'rgba(245, 166, 35, 0.2)' :
                                  b.status === 'RESCHEDULED' ? 'rgba(45, 156, 219, 0.2)' :
                                  b.status === 'CONFIRMED' ? 'rgba(39, 174, 96, 0.2)' : 'rgba(255,255,255,0.1)'}`
                         }}>
-                          {b.status.replace('_', ' ')}
+                          {b.status.replace(/_/g, ' ')}
                         </span>
+                        {b.status === 'RESCHEDULE_REQUESTED' && b.requested_travel_date && (
+                          <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+                            To: {b.requested_travel_date}
+                          </div>
+                        )}
                       </td>
                       <td>
-                        {b.status === 'CONFIRMED' && (
-                          <button 
-                            className="btn btn-outline" 
-                            style={{ padding: '6px 12px', color: 'var(--color-danger)', borderColor: 'rgba(235,87,87,0.3)', fontSize: '0.8rem' }}
-                            onClick={() => handleCancel(b.id)}
-                            title="Request Cancellation"
-                          >
-                            <Trash2 size={14} style={{ marginRight: 6 }} /> Cancel
-                          </button>
+                        {b.status === 'CONFIRMED' && rescheduleBookingId !== b.id && (
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <button 
+                              className="btn btn-outline" 
+                              style={{ padding: '4px 8px', color: 'var(--color-danger)', borderColor: 'rgba(235,87,87,0.3)', fontSize: '0.8rem' }}
+                              onClick={() => handleRefundRequest(b.id)}
+                            >
+                              Refund
+                            </button>
+                            <button 
+                              className="btn btn-outline" 
+                              style={{ padding: '4px 8px', color: '#2d9cdb', borderColor: 'rgba(45,156,219,0.3)', fontSize: '0.8rem' }}
+                              onClick={() => setRescheduleBookingId(b.id)}
+                            >
+                              Reschedule
+                            </button>
+                          </div>
+                        )}
+                        {rescheduleBookingId === b.id && (
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                            <input 
+                              type="date" 
+                              className="form-input" 
+                              style={{ padding: '4px 8px', width: 120, fontSize: '0.8rem' }}
+                              value={rescheduleDate}
+                              min={new Date().toISOString().split('T')[0]}
+                              onChange={e => setRescheduleDate(e.target.value)}
+                            />
+                            <button className="btn btn-primary" style={{ padding: '4px 8px', fontSize: '0.8rem' }} onClick={() => handleRescheduleRequest(b.id)}>
+                              Send
+                            </button>
+                            <button className="btn btn-outline" style={{ padding: '4px 8px', fontSize: '0.8rem' }} onClick={() => setRescheduleBookingId(null)}>
+                              X
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>

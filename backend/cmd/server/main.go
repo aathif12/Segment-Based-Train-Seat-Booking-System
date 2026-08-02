@@ -83,7 +83,7 @@ func main() {
 		user.Use(middleware.AuthMiddleware())
 		{
 			user.GET("/bookings", bookingHandler.GetUserBookings)
-			user.DELETE("/bookings/:id", bookingHandler.CancelBooking) // User cancel
+			user.POST("/bookings/:id/request", bookingHandler.RequestChange) // User request refund/reschedule
 		}
 
 		// Admin (Protected by Basic Auth)

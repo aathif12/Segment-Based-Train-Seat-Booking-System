@@ -4,6 +4,7 @@ import { fetchOccupancy, fetchRevenue, fetchBookings, fetchWaitlist, setAuthCred
 import type { CoachOccupancy, RevenueRecord, Booking, WaitlistEntry, AvailableSeat, TrainSchedule } from '../api/client'
 import type { ToastType } from '../components/Toast'
 import SeatMap from '../components/SeatMap'
+import AdminRescheduleModal from '../components/AdminRescheduleModal'
 
 interface AdminPageProps {
   addToast: (msg: string, type?: ToastType) => void
@@ -26,6 +27,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
   const [mapSchedules, setMapSchedules] = useState<TrainSchedule[]>([])
   const [mapScheduleId, setMapScheduleId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
+  const [rescheduleModalBooking, setRescheduleModalBooking] = useState<Booking | null>(null)
 
   const loadDashboardData = async () => {
     try {
@@ -132,13 +134,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
     }
   }
 
-  const handleProcessCancellation = async (id: number, action: 'refund' | 'reschedule') => {
+  const handleProcessCancellation = async (id: number, action: 'refund' | 'reschedule' | 'reject') => {
     try {
       await processCancellation(id, action)
-      addToast(`Booking ${action}ed successfully`, 'success')
+      addToast(`Request ${action}ed successfully`, 'success')
       loadBookings() // refresh list
     } catch (err: any) {
-      addToast(err.response?.data?.error || `Failed to ${action} booking`, 'error')
+      addToast(err.response?.data?.error || `Failed to process request`, 'error')
     }
   }
 
@@ -223,8 +225,18 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
           <button 
             className={`btn ${activeTab === 'bookings' ? 'btn-primary' : 'btn-outline'}`}
             onClick={() => setActiveTab('bookings')}
+            style={{ position: 'relative' }}
           >
             <Ticket size={18} /> Manage Bookings
+            {bookings.filter(b => b.status === 'REFUND_REQUESTED' || b.status === 'RESCHEDULE_REQUESTED').length > 0 && activeTab === 'bookings' && (
+              <span style={{ 
+                position: 'absolute', top: -6, right: -6, background: 'var(--color-danger)', 
+                color: 'white', borderRadius: '50%', width: 20, height: 20, fontSize: 12, 
+                display: 'flex', alignItems: 'center', justifyContent: 'center' 
+              }}>
+                {bookings.filter(b => b.status === 'REFUND_REQUESTED' || b.status === 'RESCHEDULE_REQUESTED').length}
+              </span>
+            )}
           </button>
           <button 
             className={`btn ${activeTab === 'waitlist' ? 'btn-primary' : 'btn-outline'}`}
@@ -395,27 +407,47 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                         </td>
                         <td>
                           <div style={{ display: 'flex', gap: 8 }}>
-                            {b.status === 'CANCEL_REQUESTED' && (
+                            {b.status === 'REFUND_REQUESTED' && (
                               <>
                                 <button 
                                   className="btn btn-outline" 
                                   style={{ padding: '4px 8px', color: 'var(--color-success)', borderColor: 'rgba(39,174,96,0.3)', fontSize: '0.8rem' }}
                                   onClick={() => handleProcessCancellation(b.id, 'refund')}
-                                  title="Approve and Refund"
+                                  title="Approve Refund"
                                 >
                                   <DollarSign size={14} style={{ marginRight: 4 }} /> Refund
                                 </button>
                                 <button 
                                   className="btn btn-outline" 
-                                  style={{ padding: '4px 8px', color: '#2d9cdb', borderColor: 'rgba(45,156,219,0.3)', fontSize: '0.8rem' }}
-                                  onClick={() => handleProcessCancellation(b.id, 'reschedule')}
-                                  title="Approve and Reschedule"
+                                  style={{ padding: '4px 8px', color: 'var(--color-text-muted)', borderColor: 'rgba(255,255,255,0.1)', fontSize: '0.8rem' }}
+                                  onClick={() => handleProcessCancellation(b.id, 'reject')}
+                                  title="Reject Request"
                                 >
-                                  <RefreshCcw size={14} style={{ marginRight: 4 }} /> Reschedule
+                                  Reject
                                 </button>
                               </>
                             )}
-                            {(b.status === 'CONFIRMED' || b.status === 'CANCEL_REQUESTED') && (
+                            {b.status === 'RESCHEDULE_REQUESTED' && (
+                              <>
+                                <button 
+                                  className="btn btn-outline" 
+                                  style={{ padding: '4px 8px', color: '#2d9cdb', borderColor: 'rgba(45,156,219,0.3)', fontSize: '0.8rem' }}
+                                  onClick={() => setRescheduleModalBooking(b)}
+                                  title="Approve and Reschedule"
+                                >
+                                  <RefreshCcw size={14} style={{ marginRight: 4 }} /> Process
+                                </button>
+                                <button 
+                                  className="btn btn-outline" 
+                                  style={{ padding: '4px 8px', color: 'var(--color-text-muted)', borderColor: 'rgba(255,255,255,0.1)', fontSize: '0.8rem' }}
+                                  onClick={() => handleProcessCancellation(b.id, 'reject')}
+                                  title="Reject Request"
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            )}
+                            {b.status === 'CANCEL_REQUESTED' && (
                               <button 
                                 className="btn btn-outline" 
                                 style={{ padding: '4px 8px', color: 'var(--color-danger)', borderColor: 'rgba(235,87,87,0.3)' }}
@@ -525,6 +557,18 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
           </div>
         )}
       </div>
+
+      {rescheduleModalBooking && (
+        <AdminRescheduleModal
+          booking={rescheduleModalBooking}
+          onClose={() => setRescheduleModalBooking(null)}
+          onSuccess={() => {
+            setRescheduleModalBooking(null)
+            loadBookings()
+          }}
+          addToast={addToast}
+        />
+      )}
     </main>
   )
 }
