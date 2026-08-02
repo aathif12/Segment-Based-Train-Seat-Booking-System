@@ -55,6 +55,9 @@ func main() {
 	log.Println("seeding coaches and seats...")
 	seedCoachesAndSeats(database)
 
+	log.Println("seeding train schedules...")
+	seedTrainSchedules(database)
+
 	log.Println("seed complete")
 }
 
@@ -96,3 +99,69 @@ func seedSeats(database *gorm.DB, coach models.Coach) {
 		}).Create(&seat)
 	}
 }
+
+// trainSchedules: real Sri Lanka Railways Colombo Fort → Badulla services.
+var trainSchedules = []models.TrainSchedule{
+	{
+		TrainNumber:   "1005",
+		TrainName:     "Podi Menike",
+		TrainType:     "Express",
+		DepartureTime: "05:55",
+		ArrivalTime:   "15:27",
+		DurationHours: 9,
+		DurationMins:  32,
+		TotalSeats:    320,
+		Classes:       "1st Class,2nd Class,3rd Class",
+		RunsDays:      "Daily",
+		IsOvernight:   false,
+		AccentColor:   "#f5a623",
+		DisplayOrder:  1,
+		IsActive:      true,
+	},
+	{
+		TrainNumber:   "1015",
+		TrainName:     "Udarata Menike",
+		TrainType:     "Intercity",
+		DepartureTime: "08:30",
+		ArrivalTime:   "18:22",
+		DurationHours: 9,
+		DurationMins:  52,
+		TotalSeats:    290,
+		Classes:       "1st Class AC,2nd Class,3rd Class",
+		RunsDays:      "Daily",
+		IsOvernight:   false,
+		AccentColor:   "#00c9a7",
+		DisplayOrder:  2,
+		IsActive:      true,
+	},
+	{
+		TrainNumber:   "1041",
+		TrainName:     "Night Mail",
+		TrainType:     "Night Mail",
+		DepartureTime: "20:15",
+		ArrivalTime:   "07:10",
+		DurationHours: 10,
+		DurationMins:  55,
+		TotalSeats:    260,
+		Classes:       "Sleeperette 2nd,2nd Class,3rd Class",
+		RunsDays:      "Daily",
+		IsOvernight:   true,
+		AccentColor:   "#7c3aed",
+		DisplayOrder:  3,
+		IsActive:      true,
+	},
+}
+
+func seedTrainSchedules(database *gorm.DB) {
+	for _, ts := range trainSchedules {
+		database.Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "train_number"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"train_name", "train_type", "departure_time", "arrival_time",
+				"duration_hours", "duration_mins", "total_seats", "classes",
+				"runs_days", "is_overnight", "accent_color", "display_order", "is_active",
+			}),
+		}).Create(&ts)
+	}
+}
+

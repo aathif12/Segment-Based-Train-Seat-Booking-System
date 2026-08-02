@@ -998,7 +998,8 @@ a:hover { color: var(--color-accent); }
 }
 
 /* ── Search Card Heading ─────────────────────────────────────────── */
-.search-card__heading {
+.search-card__heading,
+.search-panel__heading {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1008,6 +1009,57 @@ a:hover { color: var(--color-accent); }
   margin-bottom: 20px;
   padding-bottom: 16px;
   border-bottom: 1px solid var(--color-border);
+}
+
+/* ── Search Panel ────────────────────────────────────────────────── */
+.search-panel {
+  max-width: 820px;
+  margin: 0 auto;
+}
+
+/* Journey info strip below the grid */
+.search-panel__info {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+  padding: 10px 16px;
+  background: rgba(245,166,35,0.04);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(245,166,35,0.10);
+  font-size: 0.82rem;
+  color: var(--color-text-muted);
+}
+
+/* ── Scroll Cue (bouncing chevron) ───────────────────────────────── */
+.scroll-cue {
+  display: flex;
+  justify-content: center;
+  margin-top: 24px;
+  color: var(--color-primary);
+  opacity: 0.6;
+  animation: bounceCue 1.6s ease-in-out infinite;
+}
+
+@keyframes bounceCue {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(6px); }
+}
+
+/* ── Schedules State (loading / error / empty) ───────────────────── */
+.schedules-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 60px 20px;
+  color: var(--color-text-muted);
+  font-size: 0.92rem;
+}
+
+.schedules-state--error {
+  color: var(--color-danger);
 }
 
 /* ── Hint text ───────────────────────────────────────────────────── */
@@ -1024,18 +1076,41 @@ a:hover { color: var(--color-accent); }
   color: var(--color-primary);
 }
 
+/* ── Selected banner extra chips ─────────────────────────────────── */
+.selected-train-banner__segment,
+.selected-train-banner__avail {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  background: rgba(255,255,255,0.04);
+}
+
+.selected-train-banner__avail {
+  color: var(--color-success);
+  border-color: rgba(34,197,94,0.25);
+  background: rgba(34,197,94,0.07);
+}
+
 /* ── Responsive ─────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .schedules-grid { grid-template-columns: 1fr; }
   .train-card__time-block { gap: 8px; }
   .train-card__time { font-size: 1rem; }
   .selected-train-banner { flex-direction: column; align-items: flex-start; }
+  .search-panel__info { gap: 12px; }
 }
 
 @media (max-width: 600px) {
   .hero { padding: 48px 0 36px; }
-  .search-card { padding: 20px; }
+  .search-card,
+  .search-panel { padding: 20px; }
   .modal { padding: 24px; }
   .admin-grid { grid-template-columns: 1fr; }
   .train-schedules-section { padding: 12px 0 40px; }
 }
+

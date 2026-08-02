@@ -122,6 +122,28 @@ export interface RevenueRecord {
 
 // ── API Functions ────────────────────────────────────────────────────────────
 
+export interface TrainSchedule {
+  id: number
+  train_number: string
+  train_name: string
+  train_type: string      // "Express" | "Intercity" | "Night Mail"
+  departure_time: string  // "HH:MM" 24h
+  arrival_time: string
+  duration_hours: number
+  duration_mins: number
+  total_seats: number
+  available_seats: number
+  classes: string         // comma-separated
+  runs_days: string
+  is_overnight: boolean
+  accent_color: string
+  display_order: number
+  is_active: boolean
+}
+
+export const fetchTrainSchedules = (date: string) =>
+  api.get<{ data: TrainSchedule[] }>(`/trains/schedules?date=${date}`).then(r => r.data.data)
+
 export const fetchStations = () =>
   api.get<{ data: Station[] }>('/stations').then(r => r.data.data)
 

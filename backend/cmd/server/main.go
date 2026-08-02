@@ -28,6 +28,7 @@ func main() {
 	stationHandler := handlers.NewStationHandler(database)
 	bookingHandler := handlers.NewBookingHandler(bookingService)
 	adminHandler := handlers.NewAdminHandler(bookingService)
+	trainScheduleHandler := handlers.NewTrainScheduleHandler(database)
 
 	// Configure Gin.
 	if cfg.Environment == "production" {
@@ -56,6 +57,13 @@ func main() {
 
 		// Stations
 		api.GET("/stations", stationHandler.List)
+
+		// Train Schedules (public)
+		trains := api.Group("/trains")
+		{
+			trains.GET("/schedules", trainScheduleHandler.List)
+			trains.GET("/schedules/:id", trainScheduleHandler.Get)
+		}
 
 		// Seats & Availability
 		api.GET("/seats/available", bookingHandler.GetAvailableSeats)

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react'
-import { Train, Search, MapPin, Ruler, Coins, CheckCircle2 } from 'lucide-react'
-import { fetchStations, fetchAvailableSeats } from '../api/client'
-import type { Station, AvailableSeat } from '../api/client'
+import {
+  Train, Search, MapPin, Ruler, Coins, CheckCircle2,
+  ArrowRight, Calendar, ChevronDown,
+} from 'lucide-react'
+import { fetchStations, fetchAvailableSeats, fetchTrainSchedules } from '../api/client'
+import type { Station, AvailableSeat, TrainSchedule } from '../api/client'
 import SeatMap from '../components/SeatMap'
 import BookingModal from '../components/BookingModal'
-import TrainSchedules, { TRAIN_SCHEDULES } from '../components/TrainSchedules'
-import type { TrainSchedule } from '../components/TrainSchedules'
+import TrainSchedules from '../components/TrainSchedules'
 import type { ToastType } from '../components/Toast'
 
 interface HomePageProps {
@@ -13,17 +15,26 @@ interface HomePageProps {
 }
 
 const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
-  const [stations, setStations] = useState<Station[]>([])
-  const [fromId, setFromId] = useState<string>('')
-  const [toId, setToId] = useState<string>('')
-  const [travelDate, setTravelDate] = useState<string>(new Date().toISOString().split('T')[0])
-  const [seats, setSeats] = useState<AvailableSeat[]>([])
+  // ── Station / Search state ──────────────────────────────────────
+  const [stations, setStations]             = useState<Station[]>([])
+  const [fromId, setFromId]                 = useState<string>('')
+  const [toId, setToId]                     = useState<string>('')
+  const [travelDate, setTravelDate]         = useState<string>(new Date().toISOString().split('T')[0])
   const [loadingStations, setLoadingStations] = useState(true)
-  const [loadingSeats, setLoadingSeats] = useState(false)
-  const [selectedSeat, setSelectedSeat] = useState<AvailableSeat | null>(null)
-  const [searched, setSearched] = useState(false)
-  const [selectedTrain, setSelectedTrain] = useState<TrainSchedule | null>(null)
+  const [searched, setSearched]             = useState(false)
 
+  // ── Train Schedule state ────────────────────────────────────────
+  const [schedules, setSchedules]           = useState<TrainSchedule[]>([])
+  const [loadingSchedules, setLoadingSchedules] = useState(false)
+  const [scheduleError, setScheduleError]   = useState<string | null>(null)
+  const [selectedTrain, setSelectedTrain]   = useState<TrainSchedule | null>(null)
+
+  // ── Seat state ──────────────────────────────────────────────────
+  const [seats, setSeats]                   = useState<AvailableSeat[]>([])
+  const [loadingSeats, setLoadingSeats]     = useState(false)
+  const [selectedSeat, setSelectedSeat]     = useState<AvailableSeat | null>(null)
+
+  // Load stations once
   useEffect(() => {
     fetchStations()
       .then(s => {
@@ -38,198 +49,307 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
   }, [])
 
   const fromStation = stations.find(s => s.id === Number(fromId))
-  const toStation = stations.find(s => s.id === Number(toId))
+  const toStation   = stations.find(s => s.id === Number(toId))
 
-  const handleTrainSelect = (train: TrainSchedule) => {
-    setSelectedTrain(train)
-    // Scroll smoothly to the booking section
-    setTimeout(() => {
-      document.getElementById('booking-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-    }, 100)
-  }
-
+  // ── Step 1: Search → fetch schedules ───────────────────────────
   const handleSearch = async () => {
     if (!fromStation || !toStation) return
     if (fromStation.order_in_route >= toStation.order_in_route) {
-      addToast('Destination must be after origin on the route', 'error')
+      addToast('Destination must be after the origin on the route', 'error')
       return
     }
 
-    setLoadingSeats(true)
-    setSeats([])
     setSearched(true)
+    setSelectedTrain(null)
+    setSeats([])
     setSelectedSeat(null)
+    setScheduleError(null)
+    setLoadingSchedules(true)
+
     try {
+      const data = await fetchTrainSchedules(travelDate)
+      setSchedules(data)
+      if (data.length === 0) {
+        addToast('No trains found for this date', 'info')
+      }
+    } catch {
+      setScheduleError('Could not load train schedules. Please try again.')
+      addToast('Failed to load train schedules', 'error')
+    } finally {
+      setLoadingSchedules(false)
+      // Smooth-scroll into the results
+      setTimeout(() => {
+        document.getElementById('schedules-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 100)
+    }
+  }
+
+  // ── Step 2: Select train → fetch seats ─────────────────────────
+  const handleTrainSelect = async (train: TrainSchedule) => {
+    setSelectedTrain(train)
+    setSeats([])
+    setSelectedSeat(null)
+    setLoadingSeats(true)
+
+    try {
+      if (!fromStation || !toStation) return
       const data = await fetchAvailableSeats(fromStation.order_in_route, toStation.order_in_route, travelDate)
       setSeats(data)
+      if (data.filter(s => s.is_available).length === 0) {
+        addToast('No seats available — try waitlist after selecting a seat', 'info')
+      }
     } catch {
       addToast('Failed to fetch seat availability', 'error')
     } finally {
       setLoadingSeats(false)
+      setTimeout(() => {
+        document.getElementById('seatmap-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 150)
     }
   }
 
   const handleBookingSuccess = () => {
-    if (fromStation && toStation) {
+    if (fromStation && toStation && selectedTrain) {
       fetchAvailableSeats(fromStation.order_in_route, toStation.order_in_route, travelDate)
         .then(setSeats)
+      // Also refresh schedules to reflect updated seat count
+      fetchTrainSchedules(travelDate).then(setSchedules).catch(() => {})
     }
   }
 
+  const distanceKm = fromStation && toStation
+    ? Math.abs(toStation.distance_km - fromStation.distance_km)
+    : 0
+
   return (
     <main>
-      {/* ── Hero ──────────────────────────────────────────────────── */}
+
+      {/* ═══════════════════════════════════════════════════════════
+          HERO + SEARCH
+      ═══════════════════════════════════════════════════════════ */}
       <section className="hero">
         <div className="container">
-          <div className="hero-eyebrow fade-in" style={{ display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
-            <Train size={18} /> Colombo Fort — Badulla Scenic Line
+          <div className="hero-eyebrow fade-in">
+            <Train size={16} />
+            Colombo Fort — Badulla Scenic Line
           </div>
+
           <h1 className="hero-title fade-up">
             Book Your Seat,<br />Pay for Your Journey
           </h1>
+
           <p className="hero-subtitle fade-up" style={{ animationDelay: '0.1s' }}>
             Segment-based reserved seating — one physical seat, multiple passengers,
             each paying only for the distance they actually travel.
           </p>
+
+          {/* ── Search Panel ─────────────────────────────────────── */}
+          <div className="glass-card search-panel fade-up" style={{ animationDelay: '0.2s' }}>
+            <div className="search-panel__heading">
+              <Search size={16} style={{ color: 'var(--color-primary)' }} />
+              <span>Find Trains</span>
+            </div>
+
+            {loadingStations ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
+                <div className="spinner spinner-lg" />
+              </div>
+            ) : (
+              <>
+                <div className="search-grid">
+                  {/* From */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="from-station">
+                      <MapPin size={13} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: 4 }} />
+                      From
+                    </label>
+                    <select
+                      id="from-station"
+                      className="form-select"
+                      value={fromId}
+                      onChange={e => setFromId(e.target.value)}
+                    >
+                      {stations.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Date */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="travel-date">
+                      <Calendar size={13} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: 4 }} />
+                      Date
+                    </label>
+                    <input
+                      type="date"
+                      id="travel-date"
+                      className="form-input"
+                      value={travelDate}
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={e => {
+                        setTravelDate(e.target.value)
+                        // Reset results when date changes
+                        if (searched) {
+                          setSearched(false)
+                          setSchedules([])
+                          setSelectedTrain(null)
+                          setSeats([])
+                        }
+                      }}
+                    />
+                  </div>
+
+                  {/* To */}
+                  <div className="form-group">
+                    <label className="form-label" htmlFor="to-station">
+                      <MapPin size={13} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: 4 }} />
+                      To
+                    </label>
+                    <select
+                      id="to-station"
+                      className="form-select"
+                      value={toId}
+                      onChange={e => setToId(e.target.value)}
+                    >
+                      {stations.map(s => (
+                        <option key={s.id} value={s.id}>{s.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Search Button */}
+                  <button
+                    id="btn-search-trains"
+                    className="btn btn-primary btn-lg"
+                    onClick={handleSearch}
+                    disabled={loadingSchedules || !fromId || !toId}
+                  >
+                    {loadingSchedules
+                      ? <><div className="spinner" style={{ width: 18, height: 18 }} /> Searching…</>
+                      : <><Search size={18} style={{ marginRight: 8 }} /> Search Trains</>
+                    }
+                  </button>
+                </div>
+
+                {/* Journey info strip */}
+                {fromStation && toStation && fromStation.id !== toStation.id && (
+                  <div className="search-panel__info">
+                    <span>
+                      <MapPin size={13} style={{ display: 'inline', verticalAlign: 'text-bottom' }} />
+                      {' '}{fromStation.name}
+                      <ArrowRight size={13} style={{ display: 'inline', verticalAlign: 'text-bottom', margin: '0 4px' }} />
+                      {toStation.name}
+                    </span>
+                    {distanceKm > 0 && (
+                      <>
+                        <span>
+                          <Ruler size={13} style={{ display: 'inline', verticalAlign: 'text-bottom' }} />
+                          {' '}~{distanceKm.toFixed(0)} km
+                        </span>
+                        <span>
+                          <Coins size={13} style={{ display: 'inline', verticalAlign: 'text-bottom' }} />
+                          {' '}From LKR {(distanceKm * 3.5).toFixed(0)}
+                        </span>
+                      </>
+                    )}
+                    <span>
+                      <Calendar size={13} style={{ display: 'inline', verticalAlign: 'text-bottom' }} />
+                      {' '}{travelDate}
+                    </span>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+
+          {/* Scroll cue */}
+          {searched && (
+            <div className="scroll-cue fade-in">
+              <ChevronDown size={20} />
+            </div>
+          )}
         </div>
       </section>
 
-      {/* ── Train Schedule Selector ────────────────────────────────── */}
-      <TrainSchedules
-        selectedTrainId={selectedTrain?.id ?? null}
-        onSelect={handleTrainSelect}
-      />
+      {/* ═══════════════════════════════════════════════════════════
+          STEP 2 — TRAIN SCHEDULE RESULTS
+      ═══════════════════════════════════════════════════════════ */}
+      {searched && (
+        <section id="schedules-section" className="train-schedules-section">
+          <div className="container">
+            <div className="schedules-header fade-up">
+              <div className="schedules-route-badge">
+                <Train size={14} />
+                {fromStation?.name} → {toStation?.name} · {travelDate}
+              </div>
+              <h2 className="schedules-title">Available Trains</h2>
+              {!loadingSchedules && schedules.length > 0 && (
+                <p className="schedules-subtitle">
+                  {schedules.length} train{schedules.length !== 1 ? 's' : ''} found — select one to view seat availability
+                </p>
+              )}
+            </div>
 
-      {/* ── Booking Section (seat search) ─────────────────────────── */}
-      <section id="booking-section" className="booking-section">
-        <div className="container">
+            <TrainSchedules
+              schedules={schedules}
+              loading={loadingSchedules}
+              error={scheduleError}
+              selectedId={selectedTrain?.id ?? null}
+              onSelect={handleTrainSelect}
+            />
+          </div>
+        </section>
+      )}
 
-          {/* Selected train banner */}
-          {selectedTrain && (
-            <div className="selected-train-banner fade-up" style={{ '--card-accent': selectedTrain.highlightColor } as React.CSSProperties}>
+      {/* ═══════════════════════════════════════════════════════════
+          STEP 3 — SEAT MAP
+      ═══════════════════════════════════════════════════════════ */}
+      {selectedTrain && (
+        <section id="seatmap-section" className="seats-section">
+          <div className="container">
+
+            {/* Selected train context bar */}
+            <div
+              className="selected-train-banner fade-up"
+              style={{ '--card-accent': selectedTrain.accent_color } as React.CSSProperties}
+            >
               <div className="selected-train-banner__left">
-                <Train size={20} style={{ color: selectedTrain.highlightColor }} />
+                <Train size={20} style={{ color: selectedTrain.accent_color }} />
                 <div>
                   <div className="selected-train-banner__label">Selected Train</div>
                   <div className="selected-train-banner__name">
-                    #{selectedTrain.number} — {selectedTrain.name}
+                    #{selectedTrain.train_number} — {selectedTrain.train_name}
                     <span className="selected-train-banner__time">
-                      {selectedTrain.departureTime} → {selectedTrain.arrivalTime}
-                      {selectedTrain.isOvernight ? ' (+1)' : ''}
+                      {selectedTrain.departure_time} → {selectedTrain.arrival_time}
+                      {selectedTrain.is_overnight ? ' (+1 day)' : ''}
                     </span>
                   </div>
                 </div>
               </div>
-              <button
-                className="btn btn-outline btn-sm"
-                onClick={() => setSelectedTrain(null)}
-              >
-                Change
-              </button>
-            </div>
-          )}
-
-          {/* ── Search Card ───────────────────────────────────────── */}
-          <div className="glass-card search-card fade-up" style={{ animationDelay: '0.1s' }}>
-            <div className="search-card__heading">
-              <Search size={18} style={{ color: 'var(--color-primary)' }} />
-              <span>Select Segment &amp; Date</span>
-            </div>
-
-            {loadingStations ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: 20 }}>
-                <div className="spinner spinner-lg" />
-              </div>
-            ) : (
-              <div className="search-grid">
-                <div className="form-group">
-                  <label className="form-label" htmlFor="from-station">From</label>
-                  <select
-                    id="from-station"
-                    className="form-select"
-                    value={fromId}
-                    onChange={e => setFromId(e.target.value)}
-                  >
-                    {stations.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="travel-date">Date</label>
-                  <input
-                    type="date"
-                    id="travel-date"
-                    className="form-input"
-                    value={travelDate}
-                    min={new Date().toISOString().split('T')[0]}
-                    onChange={e => setTravelDate(e.target.value)}
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label" htmlFor="to-station">To</label>
-                  <select
-                    id="to-station"
-                    className="form-select"
-                    value={toId}
-                    onChange={e => setToId(e.target.value)}
-                  >
-                    {stations.map(s => (
-                      <option key={s.id} value={s.id}>{s.name}</option>
-                    ))}
-                  </select>
-                </div>
-
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                {fromStation && toStation && (
+                  <span className="selected-train-banner__segment">
+                    <MapPin size={12} />
+                    {fromStation.name} → {toStation.name}
+                  </span>
+                )}
+                {seats.length > 0 && (
+                  <span className="selected-train-banner__avail">
+                    <CheckCircle2 size={12} />
+                    {seats.filter(s => s.is_available).length} seats available
+                  </span>
+                )}
                 <button
-                  id="btn-search-seats"
-                  className="btn btn-primary btn-lg"
-                  onClick={handleSearch}
-                  disabled={loadingSeats || !fromId || !toId || !selectedTrain}
-                  title={!selectedTrain ? 'Please select a train above first' : ''}
+                  className="btn btn-outline btn-sm"
+                  onClick={() => { setSelectedTrain(null); setSeats([]) }}
                 >
-                  {loadingSeats
-                    ? <><div className="spinner" style={{ width: 18, height: 18 }} /> Searching…</>
-                    : <><Search size={18} style={{ marginRight: 8 }} /> Find Seats</>}
+                  Change Train
                 </button>
               </div>
-            )}
+            </div>
 
-            {!selectedTrain && !loadingStations && (
-              <div className="search-hint">
-                <Train size={14} />
-                <span>Please select a train above to continue</span>
-              </div>
-            )}
-
-            {/* Segment info strip */}
-            {fromStation && toStation && searched && (
-              <div style={{
-                marginTop: 20,
-                padding: '12px 20px',
-                background: 'rgba(245,166,35,0.05)',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid rgba(245,166,35,0.12)',
-                display: 'flex', gap: 24, flexWrap: 'wrap',
-                fontSize: '0.88rem', color: 'var(--color-text-muted)'
-              }}>
-                <span><MapPin size={14} style={{ display: 'inline', verticalAlign: 'text-bottom' }} /> {fromStation.name} → {toStation.name} on {travelDate}</span>
-                <span><Ruler size={14} style={{ display: 'inline', verticalAlign: 'text-bottom' }} /> ~{Math.abs(toStation.distance_km - fromStation.distance_km)} km</span>
-                <span><Coins size={14} style={{ display: 'inline', verticalAlign: 'text-bottom' }} /> From LKR {(Math.abs(toStation.distance_km - fromStation.distance_km) * 3.5).toFixed(0)}</span>
-                {seats.length > 0 && (
-                  <span><CheckCircle2 size={14} style={{ display: 'inline', verticalAlign: 'text-bottom', color: 'var(--color-success)' }} /> {seats.filter(s => s.is_available).length} seats available</span>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Seat Map Section ──────────────────────────────────────── */}
-      {searched && (
-        <section className="seats-section">
-          <div className="container">
+            {/* Seat Map */}
             {loadingSeats ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
                 <div className="spinner spinner-lg" />
