@@ -62,20 +62,9 @@ func (h *TrainScheduleHandler) List(c *gin.Context) {
 
 	result := make([]ScheduleResponse, 0, len(schedules))
 	for _, s := range schedules {
-		// Pro-rate available seats per train proportional to its total_seats share.
-		trainAvailable := baseAvailable
-		if s.TotalSeats > 0 {
-			totalCapacity := 0
-			for _, ts := range schedules {
-				totalCapacity += ts.TotalSeats
-			}
-			if totalCapacity > 0 {
-				trainAvailable = int(float64(baseAvailable) * float64(s.TotalSeats) / float64(totalCapacity))
-			}
-		}
 		result = append(result, ScheduleResponse{
 			TrainSchedule:  s,
-			AvailableSeats: trainAvailable,
+			AvailableSeats: baseAvailable,
 		})
 	}
 

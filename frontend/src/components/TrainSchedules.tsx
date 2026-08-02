@@ -135,9 +135,6 @@ const TrainSchedules: React.FC<TrainSchedulesProps> = ({
           <Clock size={14} />
           <span>
             Booking closes <strong>30 minutes before departure</strong>.
-            Showing real-time availability for today ({
-              now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-            }).
           </span>
         </div>
       )}
@@ -184,11 +181,7 @@ const TrainSchedules: React.FC<TrainSchedulesProps> = ({
                 </div>
               )}
 
-              {isSelected && !booking.closed && (
-                <div className="train-card__selected-badge">
-                  <CheckCircle2 size={14} /> Selected
-                </div>
-              )}
+              {/* The selected badge was removed from here because it overlapped with the warning badge and is redundant (shown in footer). */}
 
               {/* ── Header ───────────────────────────────────────── */}
               <div className="train-card__header">

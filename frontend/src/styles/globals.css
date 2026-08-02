@@ -1104,6 +1104,7 @@ a:hover { color: var(--color-accent); }
 .search-panel {
   max-width: 820px;
   margin: 0 auto;
+  padding: 32px;
 }
 
 /* Journey info strip below the grid */
