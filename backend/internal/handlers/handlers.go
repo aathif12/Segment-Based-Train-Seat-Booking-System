@@ -66,7 +66,18 @@ func (h *BookingHandler) GetAvailableSeats(c *gin.Context) {
 		return
 	}
 
-	seats, err := h.svc.GetAvailableSeats(fromOrder, toOrder, date)
+	scheduleIDStr := c.Query("schedule_id")
+	if scheduleIDStr == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "schedule_id is required"})
+		return
+	}
+	scheduleID, err := strconv.ParseUint(scheduleIDStr, 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "schedule_id must be an integer"})
+		return
+	}
+
+	seats, err := h.svc.GetAvailableSeats(fromOrder, toOrder, date, uint(scheduleID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return

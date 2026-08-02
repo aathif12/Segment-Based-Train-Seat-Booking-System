@@ -30,13 +30,14 @@ func NewBookingService(db *gorm.DB, fareService *FareService) *BookingService {
 
 // BookingRequest carries the input data for a new booking.
 type BookingRequest struct {
-	SeatID         uint   `json:"seat_id" binding:"required"`
-	PassengerName  string `json:"passenger_name" binding:"required,min=2,max=150"`
-	PassengerEmail string `json:"passenger_email" binding:"required,email"`
-	TravelDate     string `json:"travel_date" binding:"required"`
-	StartStationID uint   `json:"start_station_id" binding:"required"`
-	EndStationID   uint   `json:"end_station_id" binding:"required"`
-	UserID         *uint  `json:"-"`
+	SeatID          uint   `json:"seat_id" binding:"required"`
+	PassengerName   string `json:"passenger_name" binding:"required,min=2,max=150"`
+	PassengerEmail  string `json:"passenger_email" binding:"required,email"`
+	TravelDate      string `json:"travel_date" binding:"required"`
+	StartStationID  uint   `json:"start_station_id" binding:"required"`
+	EndStationID    uint   `json:"end_station_id" binding:"required"`
+	TrainScheduleID uint   `json:"train_schedule_id" binding:"required"`
+	UserID          *uint  `json:"-"`
 }
 
 // AvailabilityResult holds a seat with its availability flag for a given segment.
@@ -49,7 +50,7 @@ type AvailabilityResult struct {
 // GetAvailableSeats returns all reserved seats with availability status for the given segment and date.
 // It does NOT lock rows — this is a read-only query for the UI to display the seat map.
 // Actual conflict prevention happens inside Book() via SELECT FOR UPDATE.
-func (s *BookingService) GetAvailableSeats(startOrder, endOrder int, travelDate string) ([]AvailabilityResult, error) {
+func (s *BookingService) GetAvailableSeats(startOrder, endOrder int, travelDate string, trainScheduleID uint) ([]AvailabilityResult, error) {
 	var seats []models.Seat
 	if err := s.db.
 		Joins("JOIN coaches ON coaches.id = seats.coach_id").
@@ -64,8 +65,8 @@ func (s *BookingService) GetAvailableSeats(startOrder, endOrder int, travelDate 
 	for _, seat := range seats {
 		var conflictCount int64
 		s.db.Model(&models.Booking{}).
-			Where("seat_id = ? AND travel_date = ? AND status = ? AND start_station_order < ? AND end_station_order > ?",
-				seat.ID, travelDate, models.BookingStatusConfirmed, endOrder, startOrder).
+			Where("seat_id = ? AND travel_date = ? AND train_schedule_id = ? AND status = ? AND start_station_order < ? AND end_station_order > ?",
+				seat.ID, travelDate, trainScheduleID, models.BookingStatusConfirmed, endOrder, startOrder).
 			Count(&conflictCount)
 
 		// Fetch stations to compute fare estimate
@@ -131,9 +132,10 @@ func (s *BookingService) Book(req BookingRequest) (*models.Booking, error) {
 		// 3. Check for overlapping bookings — now safe because the seat row is locked.
 		var conflictCount int64
 		tx.Model(&models.Booking{}).
-			Where(`seat_id = ? AND travel_date = ? AND status = ? AND start_station_order < ? AND end_station_order > ?`,
+			Where(`seat_id = ? AND travel_date = ? AND train_schedule_id = ? AND status = ? AND start_station_order < ? AND end_station_order > ?`,
 				seat.ID,
 				req.TravelDate,
+				req.TrainScheduleID,
 				models.BookingStatusConfirmed,
 				endStation.OrderInRoute,
 				startStation.OrderInRoute,
@@ -156,6 +158,7 @@ func (s *BookingService) Book(req BookingRequest) (*models.Booking, error) {
 			EndStationOrder:   endStation.OrderInRoute,
 			StartStationID:    startStation.ID,
 			EndStationID:      endStation.ID,
+			TrainScheduleID:   req.TrainScheduleID,
 			Fare:              fare,
 			Status:            models.BookingStatusConfirmed,
 		}
@@ -242,11 +245,12 @@ func (s *BookingService) AdminProcessCancellation(bookingID uint, action string)
 func (s *BookingService) promoteWaitlist(cancelled models.Booking) {
 	var entry models.WaitlistEntry
 	err := s.db.Transaction(func(tx *gorm.DB) error {
-		// Find the first waitlist entry that fits within the freed segment and matches the date.
+		// Find the first waitlist entry that fits within the freed segment and matches the date and train schedule.
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
-			Where(`seat_id = ? AND travel_date = ? AND status = ? AND start_station_order >= ? AND end_station_order <= ?`,
+			Where(`seat_id = ? AND travel_date = ? AND train_schedule_id = ? AND status = ? AND start_station_order >= ? AND end_station_order <= ?`,
 				cancelled.SeatID,
 				cancelled.TravelDate,
+				cancelled.TrainScheduleID,
 				models.BookingStatusWaitlisted,
 				cancelled.StartStationOrder,
 				cancelled.EndStationOrder,
@@ -259,8 +263,8 @@ func (s *BookingService) promoteWaitlist(cancelled models.Booking) {
 		// Verify no new conflicting booking was created in the meantime.
 		var conflicts int64
 		tx.Model(&models.Booking{}).
-			Where(`seat_id = ? AND travel_date = ? AND status = ? AND start_station_order < ? AND end_station_order > ?`,
-				entry.SeatID, entry.TravelDate, models.BookingStatusConfirmed,
+			Where(`seat_id = ? AND travel_date = ? AND train_schedule_id = ? AND status = ? AND start_station_order < ? AND end_station_order > ?`,
+				entry.SeatID, entry.TravelDate, entry.TrainScheduleID, models.BookingStatusConfirmed,
 				entry.EndStationOrder, entry.StartStationOrder).
 			Count(&conflicts)
 
@@ -278,6 +282,7 @@ func (s *BookingService) promoteWaitlist(cancelled models.Booking) {
 			EndStationOrder:   entry.EndStationOrder,
 			StartStationID:    entry.StartStationID,
 			EndStationID:      entry.EndStationID,
+			TrainScheduleID:   entry.TrainScheduleID,
 			Status:            models.BookingStatusConfirmed,
 		}
 		if err := tx.Create(promoted).Error; err != nil {
@@ -316,6 +321,7 @@ func (s *BookingService) AddToWaitlist(req BookingRequest) (*models.WaitlistEntr
 		EndStationOrder:   endStation.OrderInRoute,
 		StartStationID:    startStation.ID,
 		EndStationID:      endStation.ID,
+		TrainScheduleID:   req.TrainScheduleID,
 		Status:            models.BookingStatusWaitlisted,
 	}
 

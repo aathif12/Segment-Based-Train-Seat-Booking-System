@@ -10,13 +10,14 @@ interface BookingModalProps {
   fromStation: Station
   toStation: Station
   travelDate: string
+  trainScheduleId: number
   onClose: () => void
   onSuccess: () => void
   addToast: (msg: string, type?: ToastType) => void
 }
 
 const BookingModal: React.FC<BookingModalProps> = ({
-  seat, fromStation, toStation, travelDate, onClose, onSuccess, addToast
+  seat, fromStation, toStation, travelDate, trainScheduleId, onClose, onSuccess, addToast
 }) => {
   const { user } = useAuth()
   const [name, setName] = useState(user?.name || '')
@@ -40,6 +41,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
         travel_date: travelDate,
         start_station_id: fromStation.id,
         end_station_id: toStation.id,
+        train_schedule_id: trainScheduleId,
       }
       const result = await createBooking(req)
       setBookingId(result.data.id)
@@ -75,6 +77,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
         travel_date: travelDate,
         start_station_id: fromStation.id,
         end_station_id: toStation.id,
+        train_schedule_id: trainScheduleId,
       }
       await addToWaitlist(req)
       addToast("You've been added to the waitlist!", 'info')

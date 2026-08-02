@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Settings, LogIn, TrendingUp, Users, AlertCircle, Trash2, Ticket, LogOut, List, Map, RefreshCcw, DollarSign } from 'lucide-react'
-import { fetchOccupancy, fetchRevenue, fetchBookings, fetchWaitlist, setAuthCredentials, adminCancelBooking, processCancellation, fetchAvailableSeats } from '../api/client'
-import type { CoachOccupancy, RevenueRecord, Booking, WaitlistEntry, AvailableSeat } from '../api/client'
+import { fetchOccupancy, fetchRevenue, fetchBookings, fetchWaitlist, setAuthCredentials, adminCancelBooking, processCancellation, fetchAvailableSeats, fetchTrainSchedules } from '../api/client'
+import type { CoachOccupancy, RevenueRecord, Booking, WaitlistEntry, AvailableSeat, TrainSchedule } from '../api/client'
 import type { ToastType } from '../components/Toast'
 import SeatMap from '../components/SeatMap'
 
@@ -23,6 +23,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([])
   const [mapSeats, setMapSeats] = useState<AvailableSeat[]>([])
   const [mapDate, setMapDate] = useState<string>(new Date().toISOString().split('T')[0])
+  const [mapSchedules, setMapSchedules] = useState<TrainSchedule[]>([])
+  const [mapScheduleId, setMapScheduleId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
 
   const loadDashboardData = async () => {
@@ -66,14 +68,30 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
         loadWaitlist().finally(() => setLoading(false))
       }
     }
-  }, [isAuthenticated, activeTab, mapDate])
+  }, [isAuthenticated, activeTab, mapDate, mapScheduleId])
 
   const loadSeatMap = async () => {
     setLoading(true)
     try {
-      // 0 to 100 as dummy max orders to cover entire route
-      const seats = await fetchAvailableSeats(0, 100, mapDate)
-      setMapSeats(seats)
+      // First fetch schedules for the selected date
+      const schedules = await fetchTrainSchedules(mapDate)
+      setMapSchedules(schedules)
+      
+      let currentScheduleId = mapScheduleId
+      if (schedules.length > 0 && (!currentScheduleId || !schedules.find(s => s.id === currentScheduleId))) {
+        currentScheduleId = schedules[0].id
+        setMapScheduleId(currentScheduleId)
+      } else if (schedules.length === 0) {
+        currentScheduleId = null
+        setMapScheduleId(null)
+        setMapSeats([])
+      }
+
+      if (currentScheduleId) {
+        // 0 to 100 as dummy max orders to cover entire route
+        const seats = await fetchAvailableSeats(0, 100, mapDate, currentScheduleId)
+        setMapSeats(seats)
+      }
     } catch {
       addToast('Failed to load seat map', 'error')
     } finally {
@@ -468,10 +486,26 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
           <div className="fade-up">
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
               <h2 style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <Map size={24} color="var(--color-primary)" /> Full Route Seat Map
+                <Map size={24} color="var(--color-primary)" /> Train Seat Map
               </h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <label className="form-label" style={{ marginBottom: 0 }}>Date:</label>
+                <label className="form-label" style={{ marginBottom: 0 }}>Train:</label>
+                <select
+                  className="form-input"
+                  style={{ width: 'auto' }}
+                  value={mapScheduleId || ''}
+                  onChange={e => setMapScheduleId(Number(e.target.value) || null)}
+                >
+                  {mapSchedules.map(ts => (
+                    <option key={ts.id} value={ts.id}>
+                      #{ts.train_number} - {ts.train_name}
+                    </option>
+                  ))}
+                  {mapSchedules.length === 0 && (
+                    <option value="" disabled>No trains available</option>
+                  )}
+                </select>
+                <label className="form-label" style={{ marginBottom: 0, marginLeft: 10 }}>Date:</label>
                 <input
                   type="date"
                   className="form-input"

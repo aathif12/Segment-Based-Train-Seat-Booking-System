@@ -93,7 +93,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
 
     try {
       if (!fromStation || !toStation) return
-      const data = await fetchAvailableSeats(fromStation.order_in_route, toStation.order_in_route, travelDate)
+      const data = await fetchAvailableSeats(fromStation.order_in_route, toStation.order_in_route, travelDate, train.id)
       setSeats(data)
       if (data.filter(s => s.is_available).length === 0) {
         addToast('No seats available — try waitlist after selecting a seat', 'info')
@@ -367,12 +367,13 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
       )}
 
       {/* ── Booking Modal ─────────────────────────────────────────── */}
-      {selectedSeat && fromStation && toStation && (
+      {selectedSeat && fromStation && toStation && selectedTrain && (
         <BookingModal
           seat={selectedSeat}
           fromStation={fromStation}
           toStation={toStation}
           travelDate={travelDate}
+          trainScheduleId={selectedTrain.id}
           onClose={() => setSelectedSeat(null)}
           onSuccess={handleBookingSuccess}
           addToast={addToast}

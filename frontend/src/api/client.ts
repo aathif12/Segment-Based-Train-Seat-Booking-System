@@ -104,6 +104,7 @@ export interface BookingRequest {
   travel_date: string
   start_station_id: number
   end_station_id: number
+  train_schedule_id: number
 }
 
 export interface CoachOccupancy {
@@ -147,8 +148,8 @@ export const fetchTrainSchedules = (date: string) =>
 export const fetchStations = () =>
   api.get<{ data: Station[] }>('/stations').then(r => r.data.data)
 
-export const fetchAvailableSeats = (fromOrder: number, toOrder: number, date: string) =>
-  api.get<{ data: AvailableSeat[] }>(`/seats/available?from_order=${fromOrder}&to_order=${toOrder}&date=${date}`)
+export const fetchAvailableSeats = (fromOrder: number, toOrder: number, date: string, scheduleId: number) =>
+  api.get<{ data: AvailableSeat[] }>(`/seats/available?from_order=${fromOrder}&to_order=${toOrder}&date=${date}&schedule_id=${scheduleId}`)
      .then(r => r.data.data)
 
 export const createBooking = (req: BookingRequest) =>

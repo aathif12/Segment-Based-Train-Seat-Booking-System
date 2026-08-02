@@ -92,15 +92,17 @@ type Booking struct {
 	EndStationOrder    int           `gorm:"not null" json:"end_station_order"`
 	StartStationID     uint          `gorm:"not null" json:"start_station_id"`
 	EndStationID       uint          `gorm:"not null" json:"end_station_id"`
+	TrainScheduleID    uint          `gorm:"not null;index;default:1" json:"train_schedule_id"`
 	Fare               float64       `gorm:"not null;default:0" json:"fare"`
 	Status             BookingStatus `gorm:"size:20;not null;default:'CONFIRMED'" json:"status"`
 	CreatedAt          time.Time     `json:"created_at"`
 	UpdatedAt          time.Time     `json:"updated_at"`
 
-	Seat         Seat    `gorm:"foreignKey:SeatID" json:"seat,omitempty"`
-	StartStation Station `gorm:"foreignKey:StartStationID" json:"start_station,omitempty"`
-	EndStation   Station `gorm:"foreignKey:EndStationID" json:"end_station,omitempty"`
-	User         *User   `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	Seat          Seat          `gorm:"foreignKey:SeatID" json:"seat,omitempty"`
+	StartStation  Station       `gorm:"foreignKey:StartStationID" json:"start_station,omitempty"`
+	EndStation    Station       `gorm:"foreignKey:EndStationID" json:"end_station,omitempty"`
+	User          *User         `gorm:"foreignKey:UserID" json:"user,omitempty"`
+	TrainSchedule TrainSchedule `gorm:"foreignKey:TrainScheduleID" json:"train_schedule,omitempty"`
 }
 
 // WaitlistEntry queues a passenger when a seat's segment is fully booked.
@@ -116,6 +118,7 @@ type WaitlistEntry struct {
 	EndStationOrder   int           `gorm:"not null" json:"end_station_order"`
 	StartStationID    uint          `gorm:"not null" json:"start_station_id"`
 	EndStationID      uint          `gorm:"not null" json:"end_station_id"`
+	TrainScheduleID   uint          `gorm:"not null;index;default:1" json:"train_schedule_id"`
 	Status            BookingStatus `gorm:"size:20;not null;default:'WAITLISTED'" json:"status"`
 	CreatedAt         time.Time     `json:"created_at"`
 	UpdatedAt         time.Time     `json:"updated_at"`
@@ -124,4 +127,5 @@ type WaitlistEntry struct {
 	Seat              Seat          `gorm:"foreignKey:SeatID" json:"seat,omitempty"`
 	StartStation      Station       `gorm:"foreignKey:StartStationID" json:"start_station,omitempty"`
 	EndStation        Station       `gorm:"foreignKey:EndStationID" json:"end_station,omitempty"`
+	TrainSchedule     TrainSchedule `gorm:"foreignKey:TrainScheduleID" json:"train_schedule,omitempty"`
 }
