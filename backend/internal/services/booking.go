@@ -437,6 +437,16 @@ func (s *BookingService) AdminAssignWaitlistSeat(entryID uint, newSeatID uint, n
 			return ErrSegmentConflict
 		}
 
+		// Fetch stations to compute fare
+		var startStation, endStation models.Station
+		if err := tx.First(&startStation, entry.StartStationID).Error; err != nil {
+			return fmt.Errorf("start station not found: %w", err)
+		}
+		if err := tx.First(&endStation, entry.EndStationID).Error; err != nil {
+			return fmt.Errorf("end station not found: %w", err)
+		}
+		fare := s.fareService.Calculate(startStation, endStation, newSeat, newSeat.Coach)
+
 		// Create confirmed booking
 		booking := &models.Booking{
 			SeatID:            newSeat.ID,
@@ -450,7 +460,7 @@ func (s *BookingService) AdminAssignWaitlistSeat(entryID uint, newSeatID uint, n
 			EndStationID:      entry.EndStationID,
 			TrainScheduleID:   newTrainScheduleID,
 			Status:            models.BookingStatusConfirmed,
-			Fare:              newSeat.Fare,
+			Fare:              fare,
 		}
 		if err := tx.Create(booking).Error; err != nil {
 			return err
