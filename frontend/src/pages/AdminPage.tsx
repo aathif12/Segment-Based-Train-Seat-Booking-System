@@ -559,16 +559,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                               <div style={{ display: 'flex', gap: 8 }}>
                                 {!isExpired && (
                                   <button
-                                    className="btn btn-outline"
-                                    style={{ padding: '4px 10px', color: 'var(--color-primary)', borderColor: 'rgba(var(--color-primary-rgb),0.3)', fontSize: '0.8rem' }}
+                                    className="btn btn-secondary"
+                                    style={{ padding: '4px 10px', color: 'var(--color-primary)', borderColor: 'rgba(245,166,35,0.3)', fontSize: '0.8rem' }}
                                     onClick={() => setAssignModalEntry(w)}
                                   >
                                     Assign Seat
                                   </button>
                                 )}
                                 <button
-                                  className="btn btn-outline"
-                                  style={{ padding: '4px 10px', color: 'var(--color-error)', borderColor: 'rgba(var(--color-error-rgb),0.3)', fontSize: '0.8rem' }}
+                                  className="btn btn-secondary"
+                                  style={{ padding: '4px 10px', color: 'var(--color-danger)', borderColor: 'rgba(239,68,68,0.3)', fontSize: '0.8rem' }}
                                   onClick={() => handleCancelWaitlistEntry(w.id)}
                                 >
                                   Cancel
