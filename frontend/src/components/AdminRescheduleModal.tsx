@@ -83,44 +83,46 @@ const AdminRescheduleModal: React.FC<AdminRescheduleModalProps> = ({
 
   return (
     <div className="modal-backdrop">
-      <div className="modal-content" style={{ maxWidth: 800, width: '90%' }}>
-        <h2>Reschedule Booking #{booking.id}</h2>
-        <p style={{ color: 'var(--color-text-muted)', marginBottom: 20 }}>
-          Passenger: {booking.passenger_name} <br />
-          Route: {booking.start_station.name} → {booking.end_station.name}
-        </p>
+      <div className="modal-content" style={{ maxWidth: 820, width: '95%', maxHeight: '90vh', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ flex: '0 0 auto' }}>
+          <h2>Reschedule Booking #{booking.id}</h2>
+          <p style={{ color: 'var(--color-text-muted)', marginBottom: 20 }}>
+            Passenger: {booking.passenger_name} <br />
+            Route: {booking.start_station.name} → {booking.end_station.name}
+          </p>
 
-        <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
-          <div className="form-group" style={{ flex: 1 }}>
-            <label className="form-label">New Date</label>
-            <input 
-              type="date" 
-              className="form-input" 
-              value={date}
-              min={new Date().toISOString().split('T')[0]}
-              onChange={e => setDate(e.target.value)}
-            />
-          </div>
-          <div className="form-group" style={{ flex: 2 }}>
-            <label className="form-label">Train Schedule</label>
-            <select
-              className="form-input"
-              value={scheduleId || ''}
-              onChange={e => setScheduleId(Number(e.target.value) || null)}
-            >
-              {schedules.map(ts => (
-                <option key={ts.id} value={ts.id}>
-                  #{ts.train_number} - {ts.train_name}
-                </option>
-              ))}
-              {schedules.length === 0 && (
-                <option value="" disabled>No trains available</option>
-              )}
-            </select>
+          <div style={{ display: 'flex', gap: 16, marginBottom: 20 }}>
+            <div className="form-group" style={{ flex: 1 }}>
+              <label className="form-label">New Date</label>
+              <input 
+                type="date" 
+                className="form-input" 
+                value={date}
+                min={new Date().toISOString().split('T')[0]}
+                onChange={e => setDate(e.target.value)}
+              />
+            </div>
+            <div className="form-group" style={{ flex: 2 }}>
+              <label className="form-label">Train Schedule</label>
+              <select
+                className="form-input"
+                value={scheduleId || ''}
+                onChange={e => setScheduleId(Number(e.target.value) || null)}
+              >
+                {schedules.map(ts => (
+                  <option key={ts.id} value={ts.id}>
+                    #{ts.train_number} - {ts.train_name}
+                  </option>
+                ))}
+                {schedules.length === 0 && (
+                  <option value="" disabled>No trains available</option>
+                )}
+              </select>
+            </div>
           </div>
         </div>
 
-        <div style={{ border: '1px solid rgba(0,0,0,0.1)', borderRadius: 12, padding: 20, marginBottom: 20, background: 'var(--color-bg-secondary)' }}>
+        <div style={{ flex: '1 1 auto', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 20, marginBottom: 16, background: 'var(--color-bg-secondary)' }}>
           <h3 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
             <Map size={18} color="var(--color-primary)" /> Select New Seat
           </h3>
@@ -128,6 +130,10 @@ const AdminRescheduleModal: React.FC<AdminRescheduleModalProps> = ({
             <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
               <div className="spinner" />
             </div>
+          ) : seats.length === 0 ? (
+            <p style={{ color: 'var(--color-text-muted)', textAlign: 'center', padding: 24 }}>
+              No seats available for the selected train and date.
+            </p>
           ) : (
             <SeatMap
               seats={seats}
@@ -137,7 +143,13 @@ const AdminRescheduleModal: React.FC<AdminRescheduleModalProps> = ({
           )}
         </div>
 
-        <div className="modal-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: 12 }}>
+        {selectedSeatId && (
+          <p style={{ color: 'var(--color-success)', fontSize: '0.9rem', marginBottom: 12, textAlign: 'center' }}>
+            ✓ Seat selected — click Confirm Reschedule to proceed
+          </p>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, flexShrink: 0 }}>
           <button className="btn btn-outline" onClick={onClose} disabled={submitting}>
             Cancel
           </button>
