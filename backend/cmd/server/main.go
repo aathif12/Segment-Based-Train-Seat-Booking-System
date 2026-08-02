@@ -20,8 +20,9 @@ func main() {
 	database := db.Connect(cfg.DatabaseURL)
 
 	// Wire up services.
+	emailService := services.NewEmailService(cfg)
 	fareService := services.NewFareService()
-	bookingService := services.NewBookingService(database, fareService)
+	bookingService := services.NewBookingService(database, fareService, emailService)
 
 	// Wire up handlers.
 	authHandler := handlers.NewAuthHandler(database)

@@ -425,6 +425,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                         <td>
                           <div style={{ fontWeight: 600 }}>{b.passenger_name}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{b.passenger_email}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 2 }}>NIC: {b.passenger_nic}</div>
                         </td>
                         <td>{b.start_station.name} → {b.end_station.name}</td>
                         <td>{b.travel_date}</td>
@@ -538,6 +539,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                         <td>
                           <div style={{ fontWeight: 600 }}>{w.passenger_name}</div>
                           <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{w.passenger_email}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 2 }}>NIC: {w.passenger_nic}</div>
                         </td>
                         <td>{w.start_station.name} → {w.end_station.name}</td>
                         <td>{w.travel_date}</td>

@@ -24,12 +24,13 @@ const BookingModal: React.FC<BookingModalProps> = ({
   const navigate = useNavigate()
   const [name, setName] = useState(user?.name || '')
   const [email, setEmail] = useState(user?.email || '')
+  const [nic, setNic] = useState('')
   const [loading, setLoading] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [bookingId, setBookingId] = useState<number | null>(null)
 
   const handleBook = async () => {
-    if (!name.trim() || !email.trim()) {
+    if (!name.trim() || !email.trim() || !nic.trim()) {
       addToast('Please fill in all fields', 'error')
       return
     }
@@ -40,6 +41,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
         seat_id: seat.id,
         passenger_name: name.trim(),
         passenger_email: email.trim(),
+        passenger_nic: nic.trim(),
         travel_date: travelDate,
         start_station_id: fromStation.id,
         end_station_id: toStation.id,
@@ -72,7 +74,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
       navigate('/login')
       return
     }
-    if (!name.trim() || !email.trim()) {
+    if (!name.trim() || !email.trim() || !nic.trim()) {
       addToast('Please fill in your details to join the waitlist', 'error')
       return
     }
@@ -82,6 +84,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
         seat_id: seat.id,
         passenger_name: name.trim(),
         passenger_email: email.trim(),
+        passenger_nic: nic.trim(),
         travel_date: travelDate,
         start_station_id: fromStation.id,
         end_station_id: toStation.id,
@@ -220,6 +223,18 @@ const BookingModal: React.FC<BookingModalProps> = ({
                   placeholder="e.g. aathavan@example.com"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="passenger-nic">NIC Number</label>
+                <input
+                  id="passenger-nic"
+                  className="form-input"
+                  type="text"
+                  placeholder="e.g. 199912345678"
+                  value={nic}
+                  onChange={e => setNic(e.target.value)}
                   disabled={loading}
                 />
               </div>

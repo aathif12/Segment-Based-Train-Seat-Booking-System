@@ -29,6 +29,11 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER:-lfs}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-lfsrailway}?sslmode=disable
       PORT: "8080"
       ENVIRONMENT: development
+      SMTP_HOST: mailpit
+      SMTP_PORT: "1025"
+      SMTP_USER: ""
+      SMTP_PASS: ""
+      SMTP_FROM: "noreply@lfsrailway.lk"
     # Installs 'air' for hot-reloading Go code and runs it
     command: sh -c "go install github.com/air-verse/air@v1.52.3 && air --build.cmd 'go build -o ./tmp/main ./cmd/server' --build.bin './tmp/main'"
     ports:
@@ -48,6 +53,21 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-lfs}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-lfsrailway}?sslmode=disable
     command: sh -c "go run ./seed"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - lfs_net_dev
+
+  mailpit:
+    image: axllent/mailpit
+    container_name: lfs_mailpit_dev
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - lfs_net_dev
     depends_on:
       backend:
         condition: service_started

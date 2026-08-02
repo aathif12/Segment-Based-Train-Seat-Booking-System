@@ -89,6 +89,7 @@ type Booking struct {
 	SeatID             uint          `gorm:"not null;index" json:"seat_id"`
 	PassengerName      string        `gorm:"size:150;not null" json:"passenger_name"`
 	PassengerEmail     string        `gorm:"size:255;not null" json:"passenger_email"`
+	PassengerNIC       string        `gorm:"size:20;not null;default:'-'" json:"passenger_nic"`
 	TravelDate         string        `gorm:"size:10;not null;index;default:'2026-08-01'" json:"travel_date"`
 	StartStationOrder  int           `gorm:"not null" json:"start_station_order"`
 	EndStationOrder    int           `gorm:"not null" json:"end_station_order"`
@@ -116,6 +117,7 @@ type WaitlistEntry struct {
 	SeatID            uint          `gorm:"not null;index" json:"seat_id"`
 	PassengerName     string        `gorm:"size:150;not null" json:"passenger_name"`
 	PassengerEmail    string        `gorm:"size:255;not null" json:"passenger_email"`
+	PassengerNIC      string        `gorm:"size:20;not null;default:'-'" json:"passenger_nic"`
 	TravelDate        string        `gorm:"size:10;not null;index;default:'2026-08-01'" json:"travel_date"`
 	StartStationOrder int           `gorm:"not null" json:"start_station_order"`
 	EndStationOrder   int           `gorm:"not null" json:"end_station_order"`

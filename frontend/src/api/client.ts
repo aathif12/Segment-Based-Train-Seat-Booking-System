@@ -56,6 +56,7 @@ export interface Booking {
   seat_id: number
   passenger_name: string
   passenger_email: string
+  passenger_nic: string
   start_station_order: number
   end_station_order: number
   start_station_id: number
@@ -75,6 +76,7 @@ export interface WaitlistEntry {
   seat_id: number
   passenger_name: string
   passenger_email: string
+  passenger_nic: string
   start_station_order: number
   end_station_order: number
   start_station_id: number
@@ -102,6 +104,7 @@ export interface BookingRequest {
   seat_id: number
   passenger_name: string
   passenger_email: string
+  passenger_nic: string
   travel_date: string
   start_station_id: number
   end_station_id: number

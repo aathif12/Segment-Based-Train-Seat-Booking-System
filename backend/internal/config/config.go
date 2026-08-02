@@ -12,6 +12,11 @@ type Config struct {
 	DatabaseURL string
 	Port        string
 	Environment string
+	SMTPHost    string
+	SMTPPort    string
+	SMTPUser    string
+	SMTPPass    string
+	SMTPFrom    string
 }
 
 // Load reads configuration from .env file (if present) and environment variables.
@@ -24,6 +29,11 @@ func Load() *Config {
 		DatabaseURL: getEnv("DATABASE_URL", ""),
 		Port:        getEnv("PORT", "8080"),
 		Environment: getEnv("ENVIRONMENT", "development"),
+		SMTPHost:    getEnv("SMTP_HOST", ""),
+		SMTPPort:    getEnv("SMTP_PORT", "25"),
+		SMTPUser:    getEnv("SMTP_USER", ""),
+		SMTPPass:    getEnv("SMTP_PASS", ""),
+		SMTPFrom:    getEnv("SMTP_FROM", "noreply@lfsrailway.lk"),
 	}
 
 	if cfg.DatabaseURL == "" {

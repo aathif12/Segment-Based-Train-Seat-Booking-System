@@ -21,11 +21,16 @@ var ErrSeatNotFound = errors.New("seat not found")
 type BookingService struct {
 	db          *gorm.DB
 	fareService *FareService
+	emailSvc    *EmailService
 }
 
-// NewBookingService creates a new BookingService.
-func NewBookingService(db *gorm.DB, fareService *FareService) *BookingService {
-	return &BookingService{db: db, fareService: fareService}
+// NewBookingService creates a new booking service.
+func NewBookingService(db *gorm.DB, fareService *FareService, emailSvc *EmailService) *BookingService {
+	return &BookingService{
+		db:          db,
+		fareService: fareService,
+		emailSvc:    emailSvc,
+	}
 }
 
 // BookingRequest carries the input data for a new booking.
@@ -33,6 +38,7 @@ type BookingRequest struct {
 	SeatID          uint   `json:"seat_id" binding:"required"`
 	PassengerName   string `json:"passenger_name" binding:"required,min=2,max=150"`
 	PassengerEmail  string `json:"passenger_email" binding:"required,email"`
+	PassengerNIC    string `json:"passenger_nic" binding:"required,min=10,max=12"`
 	TravelDate      string `json:"travel_date" binding:"required"`
 	StartStationID  uint   `json:"start_station_id" binding:"required"`
 	EndStationID    uint   `json:"end_station_id" binding:"required"`
@@ -153,6 +159,7 @@ func (s *BookingService) Book(req BookingRequest) (*models.Booking, error) {
 			UserID:            req.UserID,
 			PassengerName:     req.PassengerName,
 			PassengerEmail:    req.PassengerEmail,
+			PassengerNIC:      req.PassengerNIC,
 			TravelDate:        req.TravelDate,
 			StartStationOrder: startStation.OrderInRoute,
 			EndStationOrder:   endStation.OrderInRoute,
@@ -176,6 +183,15 @@ func (s *BookingService) Book(req BookingRequest) (*models.Booking, error) {
 
 	// Eagerly load associations for the response.
 	s.db.Preload("Seat.Coach").Preload("StartStation").Preload("EndStation").First(booking, booking.ID)
+
+	// Send confirmation email asynchronously
+	if s.emailSvc != nil {
+		go func() {
+			if err := s.emailSvc.SendBookingConfirmation(booking); err != nil {
+				log.Printf("Failed to send confirmation email for booking #%d: %v", booking.ID, err)
+			}
+		}()
+	}
 
 	return booking, nil
 }
@@ -380,6 +396,7 @@ func (s *BookingService) AddToWaitlist(req BookingRequest) (*models.WaitlistEntr
 		UserID:            req.UserID,
 		PassengerName:     req.PassengerName,
 		PassengerEmail:    req.PassengerEmail,
+		PassengerNIC:      req.PassengerNIC,
 		TravelDate:        req.TravelDate,
 		StartStationOrder: startStation.OrderInRoute,
 		EndStationOrder:   endStation.OrderInRoute,
@@ -399,7 +416,9 @@ func (s *BookingService) AddToWaitlist(req BookingRequest) (*models.WaitlistEntr
 // AdminAssignWaitlistSeat promotes a specific waitlist entry to a confirmed booking
 // by assigning a specific seat chosen by the admin.
 func (s *BookingService) AdminAssignWaitlistSeat(entryID uint, newSeatID uint, newTrainScheduleID uint) error {
-	return s.db.Transaction(func(tx *gorm.DB) error {
+	var createdBookingID uint
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
 		var entry models.WaitlistEntry
 		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
 			First(&entry, entryID).Error; err != nil {
@@ -453,6 +472,7 @@ func (s *BookingService) AdminAssignWaitlistSeat(entryID uint, newSeatID uint, n
 			UserID:            entry.UserID,
 			PassengerName:     entry.PassengerName,
 			PassengerEmail:    entry.PassengerEmail,
+			PassengerNIC:      entry.PassengerNIC,
 			TravelDate:        entry.TravelDate,
 			StartStationOrder: entry.StartStationOrder,
 			EndStationOrder:   entry.EndStationOrder,
@@ -466,10 +486,28 @@ func (s *BookingService) AdminAssignWaitlistSeat(entryID uint, newSeatID uint, n
 			return err
 		}
 
+		createdBookingID = booking.ID
+
 		// Mark waitlist entry as confirmed
 		entry.Status = models.BookingStatusConfirmed
 		return tx.Save(&entry).Error
 	})
+
+	if err != nil {
+		return err
+	}
+
+	// Fetch booking with associations for the email
+	booking, err := s.GetBookingByID(createdBookingID)
+	if err == nil && s.emailSvc != nil {
+		go func() {
+			if err := s.emailSvc.SendBookingConfirmation(booking); err != nil {
+				log.Printf("Failed to send waitlist promotion confirmation email for booking #%d: %v", booking.ID, err)
+			}
+		}()
+	}
+
+	return nil
 }
 
 // AdminCancelWaitlistEntry allows an admin to cancel a waitlist entry.
