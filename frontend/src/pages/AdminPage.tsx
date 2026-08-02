@@ -5,6 +5,7 @@ import type { CoachOccupancy, RevenueRecord, Booking, WaitlistEntry, AvailableSe
 import type { ToastType } from '../components/Toast'
 import SeatMap from '../components/SeatMap'
 import AdminRescheduleModal from '../components/AdminRescheduleModal'
+import AdminWaitlistAssignModal from '../components/AdminWaitlistAssignModal'
 
 interface AdminPageProps {
   addToast: (msg: string, type?: ToastType) => void
@@ -28,6 +29,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
   const [mapScheduleId, setMapScheduleId] = useState<number | null>(null)
   const [loading, setLoading] = useState(false)
   const [rescheduleModalBooking, setRescheduleModalBooking] = useState<Booking | null>(null)
+  const [assignModalEntry, setAssignModalEntry] = useState<WaitlistEntry | null>(null)
 
   const loadDashboardData = async () => {
     try {
@@ -485,6 +487,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                       <th>Date</th>
                       <th>Target Seat</th>
                       <th>Status</th>
+                      <th>Action</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -506,6 +509,17 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                           }}>
                             {w.status}
                           </span>
+                        </td>
+                        <td>
+                          {w.status === 'WAITLISTED' && (
+                            <button
+                              className="btn btn-outline"
+                              style={{ padding: '4px 10px', color: 'var(--color-primary)', borderColor: 'rgba(var(--color-primary-rgb),0.3)', fontSize: '0.8rem' }}
+                              onClick={() => setAssignModalEntry(w)}
+                            >
+                              Assign Seat
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -565,6 +579,18 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
           onSuccess={() => {
             setRescheduleModalBooking(null)
             loadBookings()
+          }}
+          addToast={addToast}
+        />
+      )}
+
+      {assignModalEntry && (
+        <AdminWaitlistAssignModal
+          entry={assignModalEntry}
+          onClose={() => setAssignModalEntry(null)}
+          onSuccess={() => {
+            setAssignModalEntry(null)
+            loadWaitlist()
           }}
           addToast={addToast}
         />

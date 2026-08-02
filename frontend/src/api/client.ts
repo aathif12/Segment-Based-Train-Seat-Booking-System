@@ -199,4 +199,10 @@ export const processCancellation = (id: number, action: 'refund' | 'reschedule' 
     new_train_schedule_id: newTrainScheduleId 
   }).then(r => r.data)
 
+export const assignWaitlistSeat = (entryId: number, newSeatId: number, newTrainScheduleId: number) =>
+  api.post<{ message: string }>(`/admin/waitlist/${entryId}/assign`, {
+    new_seat_id: newSeatId,
+    new_train_schedule_id: newTrainScheduleId,
+  }).then(r => r.data)
+
 export default api

@@ -1,8 +1,9 @@
 import React, { useState } from 'react'
-import { CheckCircle2, Ticket } from 'lucide-react'
+import { CheckCircle2, Ticket, LogIn, AlertTriangle } from 'lucide-react'
 import type { AvailableSeat, BookingRequest, Station } from '../api/client'
 import { createBooking, addToWaitlist } from '../api/client'
 import { useAuth } from '../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
 import type { ToastType } from './Toast'
 
 interface BookingModalProps {
@@ -20,6 +21,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
   seat, fromStation, toStation, travelDate, trainScheduleId, onClose, onSuccess, addToast
 }) => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [name, setName] = useState(user?.name || '')
   const [email, setEmail] = useState(user?.email || '')
   const [loading, setLoading] = useState(false)
@@ -64,6 +66,12 @@ const BookingModal: React.FC<BookingModalProps> = ({
   }
 
   const handleWaitlist = async () => {
+    if (!user) {
+      addToast('Please log in to join the waitlist', 'error')
+      onClose()
+      navigate('/login')
+      return
+    }
     if (!name.trim() || !email.trim()) {
       addToast('Please fill in your details to join the waitlist', 'error')
       return
@@ -130,9 +138,42 @@ const BookingModal: React.FC<BookingModalProps> = ({
           // ── Booking Form View ──────────────────────────────────────────
           <>
             <h2 style={{ marginBottom: 4 }}>Book Your Seat</h2>
-            <p style={{ color: 'var(--color-text-muted)', marginBottom: 24, fontSize: '0.9rem' }}>
+            <p style={{ color: 'var(--color-text-muted)', marginBottom: !user ? 12 : 24, fontSize: '0.9rem' }}>
               Coach {seat.coach.name}, Seat {seat.seat_number}
             </p>
+
+            {/* Login warning — only shown to guests */}
+            {!user && (
+              <div style={{
+                background: 'rgba(242,153,74,0.1)',
+                border: '1px solid rgba(242,153,74,0.3)',
+                borderRadius: 10,
+                padding: '12px 16px',
+                marginBottom: 20,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+              }}>
+                <AlertTriangle size={16} style={{ color: '#F2994A', flexShrink: 0, marginTop: 2 }} />
+                <div style={{ fontSize: '0.85rem', color: '#F2994A', lineHeight: 1.5 }}>
+                  <strong>You are booking as a guest.</strong> Without an account you cannot track this booking,
+                  request a refund, reschedule, or join the waitlist.{' '}
+                  <button
+                    style={{ background: 'none', border: 'none', color: '#F2994A', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: 'inherit' }}
+                    onClick={() => { onClose(); navigate('/login') }}
+                  >
+                    Log in
+                  </button>
+                  {' '}or{' '}
+                  <button
+                    style={{ background: 'none', border: 'none', color: '#F2994A', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', padding: 0, fontSize: 'inherit' }}
+                    onClick={() => { onClose(); navigate('/register') }}
+                  >
+                    create an account
+                  </button>.
+                </div>
+              </div>
+            )}
 
             {/* Fare breakdown */}
             <div className="fare-breakdown">
@@ -199,9 +240,10 @@ const BookingModal: React.FC<BookingModalProps> = ({
                 className="btn btn-secondary btn-sm"
                 onClick={handleWaitlist}
                 disabled={loading}
-                title="Join the waitlist if this seat gets booked before you"
+                title={user ? 'Join the waitlist if this seat gets booked before you' : 'Login required to join waitlist'}
+                style={!user ? { opacity: 0.6 } : undefined}
               >
-                Waitlist
+                {!user ? <><LogIn size={14} style={{ marginRight: 4 }} /> Login to Waitlist</> : 'Waitlist'}
               </button>
             </div>
           </>

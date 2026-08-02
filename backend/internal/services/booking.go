@@ -396,6 +396,72 @@ func (s *BookingService) AddToWaitlist(req BookingRequest) (*models.WaitlistEntr
 	return entry, nil
 }
 
+// AdminAssignWaitlistSeat promotes a specific waitlist entry to a confirmed booking
+// by assigning a specific seat chosen by the admin.
+func (s *BookingService) AdminAssignWaitlistSeat(entryID uint, newSeatID uint, newTrainScheduleID uint) error {
+	return s.db.Transaction(func(tx *gorm.DB) error {
+		var entry models.WaitlistEntry
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			First(&entry, entryID).Error; err != nil {
+			return fmt.Errorf("waitlist entry not found: %w", err)
+		}
+
+		if entry.Status != models.BookingStatusWaitlisted {
+			return errors.New("entry is not in a waitlisted state")
+		}
+
+		// Lock new seat
+		var newSeat models.Seat
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Preload("Coach").First(&newSeat, newSeatID).Error; err != nil {
+			return fmt.Errorf("seat not found: %w", err)
+		}
+
+		if newSeat.Coach.Type != models.CoachTypeReserved {
+			return errors.New("only reserved coach seats can be assigned")
+		}
+
+		// Check for conflicts
+		var conflictCount int64
+		tx.Model(&models.Booking{}).
+			Where(`seat_id = ? AND travel_date = ? AND train_schedule_id = ? AND status = ? AND start_station_order < ? AND end_station_order > ?`,
+				newSeat.ID,
+				entry.TravelDate,
+				newTrainScheduleID,
+				models.BookingStatusConfirmed,
+				entry.EndStationOrder,
+				entry.StartStationOrder,
+			).Count(&conflictCount)
+
+		if conflictCount > 0 {
+			return ErrSegmentConflict
+		}
+
+		// Create confirmed booking
+		booking := &models.Booking{
+			SeatID:            newSeat.ID,
+			UserID:            entry.UserID,
+			PassengerName:     entry.PassengerName,
+			PassengerEmail:    entry.PassengerEmail,
+			TravelDate:        entry.TravelDate,
+			StartStationOrder: entry.StartStationOrder,
+			EndStationOrder:   entry.EndStationOrder,
+			StartStationID:    entry.StartStationID,
+			EndStationID:      entry.EndStationID,
+			TrainScheduleID:   newTrainScheduleID,
+			Status:            models.BookingStatusConfirmed,
+			Fare:              newSeat.Fare,
+		}
+		if err := tx.Create(booking).Error; err != nil {
+			return err
+		}
+
+		// Mark waitlist entry as confirmed
+		entry.Status = models.BookingStatusConfirmed
+		return tx.Save(&entry).Error
+	})
+}
+
 // GetBookingByID fetches a single booking with all associations.
 func (s *BookingService) GetBookingByID(id uint) (*models.Booking, error) {
 	var booking models.Booking

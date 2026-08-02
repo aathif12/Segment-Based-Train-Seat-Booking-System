@@ -326,3 +326,29 @@ func (h *AdminHandler) ProcessCancellation(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Request processed successfully"})
 }
+
+// AssignWaitlistSeat promotes a waitlist entry by assigning an admin-chosen seat.
+// POST /api/admin/waitlist/:id/assign
+func (h *AdminHandler) AssignWaitlistSeat(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid waitlist entry id"})
+		return
+	}
+
+	var req struct {
+		NewSeatID          uint `json:"new_seat_id" binding:"required"`
+		NewTrainScheduleID uint `json:"new_train_schedule_id" binding:"required"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.svc.AdminAssignWaitlistSeat(uint(id), req.NewSeatID, req.NewTrainScheduleID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Waitlist entry promoted to confirmed booking"})
+}
