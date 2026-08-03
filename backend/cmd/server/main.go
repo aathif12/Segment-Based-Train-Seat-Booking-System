@@ -113,7 +113,7 @@ func main() {
 	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
-	log.Printf("LFS Railway API listening on %s", addr)
+	log.Printf("Ceylon Railways API listening on %s", addr)
 	if err := r.Run(addr); err != nil {
 		log.Fatalf("server error: %v", err)
 	}

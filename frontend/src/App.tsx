@@ -23,7 +23,7 @@ const NavBar: React.FC = () => {
       <div className="container navbar-inner">
         <div className="navbar-brand">
           <span className="brand-dot" />
-          LFS Railway
+          Ceylon Railways
           <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 400, marginLeft: 4 }}>
             Colombo Fort – Badulla
           </span>

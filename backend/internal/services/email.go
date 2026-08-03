@@ -42,12 +42,12 @@ func (s *EmailService) SendBookingConfirmation(booking *models.Booking) error {
 	m := gomail.NewMessage()
 	m.SetHeader("From", s.cfg.SMTPFrom)
 	m.SetHeader("To", booking.PassengerEmail)
-	m.SetHeader("Subject", fmt.Sprintf("LFS Railway Booking Confirmation (#%d)", booking.ID))
+	m.SetHeader("Subject", fmt.Sprintf("Ceylon Railways Booking Confirmation (#%d)", booking.ID))
 
 	htmlBody := fmt.Sprintf(`
 		<h2>Booking Confirmed!</h2>
 		<p>Dear %s,</p>
-		<p>Thank you for choosing LFS Railway. Your ticket has been confirmed.</p>
+		<p>Thank you for choosing Ceylon Railways. Your ticket has been confirmed.</p>
 		<h3>Booking Details:</h3>
 		<ul>
 			<li><strong>Booking ID:</strong> #%d</li>
@@ -61,7 +61,7 @@ func (s *EmailService) SendBookingConfirmation(booking *models.Booking) error {
 		<p>Please present your NIC and this email to the ticket checker.</p>
 		<br/>
 		<p>Safe travels,</p>
-		<p>LFS Railway Team</p>
+		<p>Ceylon Railways Team</p>
 	`,
 		booking.PassengerName,
 		booking.ID,
@@ -93,7 +93,7 @@ func (s *EmailService) SendInquiryResolvedEmail(inquiry *models.Inquiry) error {
 	m := gomail.NewMessage()
 	m.SetHeader("From", s.cfg.SMTPFrom)
 	m.SetHeader("To", inquiry.Email)
-	m.SetHeader("Subject", fmt.Sprintf("LFS Railway Support: Inquiry Resolved (#%d)", inquiry.ID))
+	m.SetHeader("Subject", fmt.Sprintf("Ceylon Railways Support: Inquiry Resolved (#%d)", inquiry.ID))
 
 	htmlBody := fmt.Sprintf(`
 		<h2>Your Inquiry has been Resolved</h2>
@@ -102,7 +102,7 @@ func (s *EmailService) SendInquiryResolvedEmail(inquiry *models.Inquiry) error {
 		<p>If you have any further questions or require additional assistance, please feel free to submit a new inquiry or reply to this email.</p>
 		<br/>
 		<p>Best regards,</p>
-		<p>LFS Railway Team</p>
+		<p>Ceylon Railways Team</p>
 	`,
 		inquiry.Name,
 		inquiry.ID,
