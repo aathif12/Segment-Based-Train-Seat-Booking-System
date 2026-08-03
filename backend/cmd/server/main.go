@@ -30,7 +30,7 @@ func main() {
 	bookingHandler := handlers.NewBookingHandler(bookingService)
 	adminHandler := handlers.NewAdminHandler(bookingService)
 	trainScheduleHandler := handlers.NewTrainScheduleHandler(database)
-	inquiryHandler := handlers.NewInquiryHandler(database)
+	inquiryHandler := handlers.NewInquiryHandler(database, emailService)
 
 	// Configure Gin.
 	if cfg.Environment == "production" {

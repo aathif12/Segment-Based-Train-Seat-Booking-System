@@ -3,18 +3,21 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"log"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lfs-railway/backend/internal/models"
+	"github.com/lfs-railway/backend/internal/services"
 	"gorm.io/gorm"
 )
 
 type InquiryHandler struct {
-	db *gorm.DB
+	db       *gorm.DB
+	emailSvc *services.EmailService
 }
 
-func NewInquiryHandler(db *gorm.DB) *InquiryHandler {
-	return &InquiryHandler{db: db}
+func NewInquiryHandler(db *gorm.DB, emailSvc *services.EmailService) *InquiryHandler {
+	return &InquiryHandler{db: db, emailSvc: emailSvc}
 }
 
 type CreateInquiryReq struct {
@@ -128,6 +131,15 @@ func (h *InquiryHandler) UpdateInquiryStatus(c *gin.Context) {
 	if err := h.db.Save(&inquiry).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update inquiry"})
 		return
+	}
+
+	// Send email if resolved
+	if inquiry.Status == "RESOLVED" && h.emailSvc != nil {
+		go func() {
+			if err := h.emailSvc.SendInquiryResolvedEmail(&inquiry); err != nil {
+				log.Printf("Failed to send inquiry resolved email for #%d: %v", inquiry.ID, err)
+			}
+		}()
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Inquiry updated successfully"})

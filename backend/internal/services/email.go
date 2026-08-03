@@ -82,3 +82,39 @@ func (s *EmailService) SendBookingConfirmation(booking *models.Booking) error {
 	log.Printf("Sent booking confirmation email to %s", booking.PassengerEmail)
 	return nil
 }
+
+// SendInquiryResolvedEmail sends an email to the user when their inquiry is resolved.
+func (s *EmailService) SendInquiryResolvedEmail(inquiry *models.Inquiry) error {
+	if s.cfg.SMTPHost == "" {
+		log.Println("SMTP_HOST not set, skipping inquiry resolved email for", inquiry.Email)
+		return nil
+	}
+
+	m := gomail.NewMessage()
+	m.SetHeader("From", s.cfg.SMTPFrom)
+	m.SetHeader("To", inquiry.Email)
+	m.SetHeader("Subject", fmt.Sprintf("LFS Railway Support: Inquiry Resolved (#%d)", inquiry.ID))
+
+	htmlBody := fmt.Sprintf(`
+		<h2>Your Inquiry has been Resolved</h2>
+		<p>Dear %s,</p>
+		<p>We are writing to let you know that your recent inquiry (<strong>#%d</strong>) regarding <em>%s</em> has been marked as resolved by our support team.</p>
+		<p>If you have any further questions or require additional assistance, please feel free to submit a new inquiry or reply to this email.</p>
+		<br/>
+		<p>Best regards,</p>
+		<p>LFS Railway Team</p>
+	`,
+		inquiry.Name,
+		inquiry.ID,
+		inquiry.ActionType,
+	)
+
+	m.SetBody("text/html", htmlBody)
+
+	if err := s.dialer.DialAndSend(m); err != nil {
+		return fmt.Errorf("failed to send inquiry resolved email: %w", err)
+	}
+
+	log.Printf("Sent inquiry resolved email to %s", inquiry.Email)
+	return nil
+}
