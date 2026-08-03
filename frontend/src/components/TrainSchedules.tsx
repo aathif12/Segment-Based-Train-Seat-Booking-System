@@ -144,7 +144,6 @@ const TrainSchedules: React.FC<TrainSchedulesProps> = ({
           const avail = getSeatAvailability(s.available_seats, s.total_seats)
           const booking = getBookingStatus(s.departure_time, travelDate, now)
           const isSelected = selectedId === s.id
-          const classList = s.classes.split(',').map(c => c.trim()).filter(Boolean)
 
           return (
             <button
@@ -231,12 +230,6 @@ const TrainSchedules: React.FC<TrainSchedulesProps> = ({
                 </div>
               </div>
 
-              {/* ── Class Pills ──────────────────────────────────── */}
-              <div className="train-card__classes">
-                {classList.map(cls => (
-                  <span key={cls} className="train-card__class-pill">{cls}</span>
-                ))}
-              </div>
 
               {/* ── Footer ───────────────────────────────────────── */}
               <div className="train-card__footer">

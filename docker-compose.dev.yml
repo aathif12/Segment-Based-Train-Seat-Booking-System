@@ -71,8 +71,6 @@ services:
     depends_on:
       backend:
         condition: service_started
-    networks:
-      - lfs_net_dev
 
   frontend:
     image: node:22-alpine
