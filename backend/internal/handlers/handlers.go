@@ -291,7 +291,8 @@ func (h *AdminHandler) CancelBooking(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.AdminProcessCancellation(uint(id), "cancel", "", 0, 0); err != nil {
+	reason := c.Query("reason")
+	if err := h.svc.AdminProcessCancellation(uint(id), "cancel", "", 0, 0, reason); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
@@ -313,13 +314,14 @@ func (h *AdminHandler) ProcessCancellation(c *gin.Context) {
 		NewDate         string `json:"new_date"`
 		NewSeatID       uint   `json:"new_seat_id"`
 		NewTrainSchedID uint   `json:"new_train_schedule_id"`
+		Reason          string `json:"reason"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
-	if err := h.svc.AdminProcessCancellation(uint(id), req.Action, req.NewDate, req.NewSeatID, req.NewTrainSchedID); err != nil {
+	if err := h.svc.AdminProcessCancellation(uint(id), req.Action, req.NewDate, req.NewSeatID, req.NewTrainSchedID, req.Reason); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

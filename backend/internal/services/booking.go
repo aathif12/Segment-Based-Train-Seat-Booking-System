@@ -251,7 +251,7 @@ func (s *BookingService) RequestChange(bookingID uint, action string, requestedD
 
 // AdminProcessCancellation processes a user's refund or reschedule request, or forces a cancellation.
 // action can be "refund", "reschedule", "reject" or "cancel".
-func (s *BookingService) AdminProcessCancellation(bookingID uint, action string, newDate string, newSeatID uint, newTrainScheduleID uint) error {
+func (s *BookingService) AdminProcessCancellation(bookingID uint, action string, newDate string, newSeatID uint, newTrainScheduleID uint, reason string) error {
 	var originalBooking models.Booking
 	var freedBooking models.Booking
 
@@ -277,6 +277,7 @@ func (s *BookingService) AdminProcessCancellation(bookingID uint, action string,
 			originalBooking.Status = models.BookingStatusRefunded
 			if action == "cancel" {
 				originalBooking.Status = models.BookingStatusCancelled
+				originalBooking.CancellationReason = reason
 			}
 			if err := tx.Save(&originalBooking).Error; err != nil {
 				return err

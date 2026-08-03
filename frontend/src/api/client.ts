@@ -63,14 +63,14 @@ export interface Booking {
   start_station_id: number
   end_station_id: number
   fare: number
-  status: 'CONFIRMED' | 'CANCELLED' | 'WAITLISTED' | 'CANCEL_REQUESTED' | 'REFUNDED' | 'RESCHEDULED' | 'REFUND_REQUESTED' | 'RESCHEDULE_REQUESTED'
+  status: 'CONFIRMED' | 'CANCELLED' | 'WAITLISTED' | 'REFUND_REQUESTED' | 'RESCHEDULE_REQUESTED' | 'CANCEL_REQUESTED' | 'REFUNDED' | 'RESCHEDULED'
   travel_date: string
-  requested_travel_date?: string
   created_at: string
   seat: Seat
   start_station: Station
   end_station: Station
   train_schedule: TrainSchedule
+  cancellation_reason?: string
 }
 
 export interface WaitlistEntry {
@@ -225,8 +225,8 @@ export const fetchBookings = () =>
 export const fetchWaitlist = () =>
   api.get<{ data: WaitlistEntry[] }>('/admin/waitlist').then(r => r.data.data)
 
-export const adminCancelBooking = (id: number) =>
-  api.delete<{ message: string }>(`/admin/bookings/${id}`).then(r => r.data)
+export const adminCancelBooking = (id: number, reason: string) =>
+  api.delete<{ message: string }>(`/admin/bookings/${id}?reason=${encodeURIComponent(reason)}`).then(r => r.data)
 
 export const processCancellation = (id: number, action: 'refund' | 'reschedule' | 'reject' | 'cancel', newDate?: string, newSeatId?: number, newTrainScheduleId?: number) =>
   api.post<{ message: string }>(`/admin/bookings/${id}/process`, { 

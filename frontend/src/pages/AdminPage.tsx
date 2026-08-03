@@ -140,9 +140,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
   }
 
   const handleCancelBooking = async (id: number) => {
-    if (!window.confirm('Are you sure you want to force cancel this booking?')) return
+    const reason = window.prompt('Please provide a reason for cancelling this booking:')
+    if (reason === null) return
+    if (reason.trim() === '') {
+      addToast('Cancellation reason is required', 'error')
+      return
+    }
     try {
-      await adminCancelBooking(id)
+      await adminCancelBooking(id, reason)
       addToast('Booking cancelled successfully', 'success')
       loadBookings() // refresh list
     } catch {
@@ -481,6 +486,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                           }}>
                             {b.status.replace('_', ' ')}
                           </span>
+                          {b.cancellation_reason && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+                              Reason: {b.cancellation_reason}
+                            </div>
+                          )}
                         </td>
                         <td>
                           <div style={{ display: 'flex', gap: 8 }}>
@@ -521,6 +531,26 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                                   title="Reject Request"
                                 >
                                   Reject
+                                </button>
+                              </>
+                            )}
+                            {b.status === 'CONFIRMED' && (
+                              <>
+                                <button 
+                                  className="btn btn-outline" 
+                                  style={{ padding: '4px 8px', color: '#2d9cdb', borderColor: 'rgba(45,156,219,0.3)', fontSize: '0.8rem' }}
+                                  onClick={() => setRescheduleModalBooking(b)}
+                                  title="Reschedule Booking"
+                                >
+                                  <RefreshCcw size={14} style={{ marginRight: 4 }} /> Reschedule
+                                </button>
+                                <button 
+                                  className="btn btn-outline" 
+                                  style={{ padding: '4px 8px', color: 'var(--color-danger)', borderColor: 'rgba(235,87,87,0.3)', fontSize: '0.8rem' }}
+                                  onClick={() => handleCancelBooking(b.id)}
+                                  title="Cancel Booking"
+                                >
+                                  <Trash2 size={14} style={{ marginRight: 4 }} /> Cancel
                                 </button>
                               </>
                             )}

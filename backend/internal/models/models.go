@@ -100,6 +100,7 @@ type Booking struct {
 	Fare               float64       `gorm:"not null;default:0" json:"fare"`
 	Status             BookingStatus `gorm:"size:25;not null;default:'CONFIRMED'" json:"status"`
 	RequestedTravelDate string       `gorm:"size:10" json:"requested_travel_date,omitempty"`
+	CancellationReason  string       `gorm:"type:text" json:"cancellation_reason,omitempty"`
 	CreatedAt          time.Time     `json:"created_at"`
 	UpdatedAt          time.Time     `json:"updated_at"`
 
