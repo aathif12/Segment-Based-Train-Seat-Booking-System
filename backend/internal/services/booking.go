@@ -276,7 +276,6 @@ func (s *BookingService) AdminProcessCancellation(bookingID uint, action string,
 		if action == "refund" || action == "cancel" {
 			originalBooking.Status = models.BookingStatusRefunded
 			if action == "cancel" {
-				originalBooking.Status = models.BookingStatusCancelled
 				originalBooking.CancellationReason = reason
 			}
 			if err := tx.Save(&originalBooking).Error; err != nil {
