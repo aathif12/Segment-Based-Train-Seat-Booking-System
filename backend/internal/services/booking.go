@@ -333,6 +333,17 @@ func (s *BookingService) AdminProcessCancellation(bookingID uint, action string,
 		return err
 	}
 
+	// Preload relationships for the email
+	s.db.Preload("Seat.Coach").Preload("StartStation").Preload("EndStation").First(&originalBooking, originalBooking.ID)
+
+	if action == "refund" || action == "cancel" || action == "reschedule" {
+		go func(b models.Booking, a string) {
+			if err := s.emailSvc.SendAdminActionEmail(&b, a); err != nil {
+				log.Printf("Failed to send admin action email for booking %d: %v", b.ID, err)
+			}
+		}(originalBooking, action)
+	}
+
 	if action != "reject" {
 		go s.promoteWaitlist(freedBooking)
 	}
