@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Settings, LogIn, TrendingUp, Users, AlertCircle, Trash2, Ticket, LogOut, List, Map, RefreshCcw, DollarSign } from 'lucide-react'
-import { fetchOccupancy, fetchRevenue, fetchBookings, fetchWaitlist, setAuthCredentials, adminCancelBooking, processCancellation, adminCancelWaitlistEntry, fetchTrainSchedules, fetchAvailableSeats } from '../api/client'
-import type { CoachOccupancy, RevenueRecord, Booking, WaitlistEntry, TrainSchedule, AvailableSeat } from '../api/client'
+import { fetchOccupancy, fetchRevenue, fetchBookings, fetchWaitlist, setAuthCredentials, adminCancelBooking, processCancellation, adminCancelWaitlistEntry, fetchTrainSchedules, fetchAvailableSeats, fetchAdminInquiries, updateInquiryStatus } from '../api/client'
+import type { CoachOccupancy, RevenueRecord, Booking, WaitlistEntry, TrainSchedule, AvailableSeat, Inquiry } from '../api/client'
 import type { ToastType } from '../components/Toast'
 import SeatMap from '../components/SeatMap'
 import AdminRescheduleModal from '../components/AdminRescheduleModal'
@@ -17,12 +17,13 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
   const [password, setPassword] = useState('')
   const [loginLoading, setLoginLoading] = useState(false)
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'bookings' | 'waitlist' | 'seatmap'>('dashboard')
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'bookings' | 'waitlist' | 'seatmap' | 'inquiries'>('dashboard')
   
   const [occupancy, setOccupancy] = useState<CoachOccupancy[]>([])
   const [revenue, setRevenue] = useState<RevenueRecord[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
   const [waitlist, setWaitlist] = useState<WaitlistEntry[]>([])
+  const [inquiries, setInquiries] = useState<Inquiry[]>([])
   const [mapSeats, setMapSeats] = useState<AvailableSeat[]>([])
   const [mapDate, setMapDate] = useState<string>(new Date().toISOString().split('T')[0])
   const [mapSchedules, setMapSchedules] = useState<TrainSchedule[]>([])
@@ -59,6 +60,15 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
     }
   }
 
+  const loadInquiries = async () => {
+    try {
+      const iq = await fetchAdminInquiries()
+      setInquiries(iq ?? [])
+    } catch {
+      addToast('Failed to load inquiries', 'error')
+    }
+  }
+
   useEffect(() => {
     if (isAuthenticated) {
       setLoading(true)
@@ -68,6 +78,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
         loadBookings().finally(() => setLoading(false))
       } else if (activeTab === 'seatmap') {
         loadSeatMap()
+      } else if (activeTab === 'inquiries') {
+        loadInquiries().finally(() => setLoading(false))
       } else {
         loadWaitlist().finally(() => setLoading(false))
       }
@@ -157,6 +169,16 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
     }
   }
 
+  const handleUpdateInquiry = async (id: number, status: string) => {
+    try {
+      await updateInquiryStatus(id, status)
+      addToast('Inquiry status updated', 'success')
+      loadInquiries()
+    } catch (err: any) {
+      addToast(err.response?.data?.error || 'Failed to update inquiry', 'error')
+    }
+  }
+
   const handleLogout = () => {
     setIsAuthenticated(false)
     setAuthCredentials(undefined, undefined)
@@ -231,28 +253,31 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
         {(() => {
           const refundReqs = bookings.filter(b => b.status === 'REFUND_REQUESTED').length
           const rescheduleReqs = bookings.filter(b => b.status === 'RESCHEDULE_REQUESTED').length
-          if (refundReqs === 0 && rescheduleReqs === 0) return null
+          if (refundReqs === 0 && rescheduleReqs === 0 && inquiries.filter(i => i.status === 'PENDING').length === 0) return null
           
           return (
-            <div style={{
-              background: 'rgba(242, 153, 74, 0.15)',
-              border: '1px solid rgba(242, 153, 74, 0.4)',
-              borderRadius: 12,
-              padding: '16px 20px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              cursor: 'pointer',
-              marginBottom: 24
-            }} onClick={() => setActiveTab('bookings')}>
-              <AlertCircle size={20} color="#F2994A" />
-              <div style={{ color: '#F2994A', fontSize: '0.95rem', fontWeight: 500 }}>
-                You have {refundReqs + rescheduleReqs} pending user request{refundReqs + rescheduleReqs > 1 ? 's' : ''} (
-                {refundReqs > 0 && `${refundReqs} refund${refundReqs > 1 ? 's' : ''}`}
-                {refundReqs > 0 && rescheduleReqs > 0 && ' and '}
-                {rescheduleReqs > 0 && `${rescheduleReqs} reschedule${rescheduleReqs > 1 ? 's' : ''}`}). 
-                Click here to review them.
-              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 24 }}>
+              {(refundReqs > 0 || rescheduleReqs > 0) && (
+                <div style={{
+                  background: 'rgba(242, 153, 74, 0.15)',
+                  border: '1px solid rgba(242, 153, 74, 0.4)',
+                  borderRadius: 12,
+                  padding: '16px 20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  cursor: 'pointer',
+                }} onClick={() => setActiveTab('bookings')}>
+                  <AlertCircle size={20} color="#F2994A" />
+                  <div style={{ color: '#F2994A', fontSize: '0.95rem', fontWeight: 500 }}>
+                    You have {refundReqs + rescheduleReqs} pending user request{refundReqs + rescheduleReqs > 1 ? 's' : ''} (
+                    {refundReqs > 0 && `${refundReqs} refund${refundReqs > 1 ? 's' : ''}`}
+                    {refundReqs > 0 && rescheduleReqs > 0 && ' and '}
+                    {rescheduleReqs > 0 && `${rescheduleReqs} reschedule${rescheduleReqs > 1 ? 's' : ''}`}). 
+                    Click here to review them.
+                  </div>
+                </div>
+              )}
             </div>
           )
         })()}
@@ -286,6 +311,12 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
             onClick={() => setActiveTab('waitlist')}
           >
             <List size={18} /> Waitlist
+          </button>
+          <button 
+            className={`btn ${activeTab === 'inquiries' ? 'btn-primary' : 'btn-outline'}`}
+            onClick={() => setActiveTab('inquiries')}
+          >
+            <AlertCircle size={18} /> Inquiries
           </button>
           <button 
             className={`btn ${activeTab === 'seatmap' ? 'btn-primary' : 'btn-outline'}`}
@@ -578,6 +609,84 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                               </div>
                             )
                           })()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : activeTab === 'inquiries' ? (
+          <div className="glass-card fade-up" style={{ overflow: 'hidden' }}>
+            {inquiries.length === 0 ? (
+              <div className="empty-state">
+                <div className="icon"><AlertCircle size={48} color="var(--color-text-muted)" /></div>
+                <h3>No inquiries</h3>
+                <p>There are no support inquiries submitted.</p>
+              </div>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table className="revenue-table" style={{ minWidth: 800 }}>
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Submitter</th>
+                      <th>Type / Ref</th>
+                      <th>Message</th>
+                      <th>Status</th>
+                      <th>Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {inquiries.map(iq => (
+                      <tr key={iq.id}>
+                        <td style={{ color: 'var(--color-text-muted)' }}>#{iq.id}</td>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{iq.name}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{iq.email}</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>{iq.phone}</div>
+                        </td>
+                        <td>
+                          <div style={{ fontWeight: 600 }}>{iq.action_type}</div>
+                          {iq.booking_id && <div style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Ref: #{iq.booking_id}</div>}
+                        </td>
+                        <td style={{ maxWidth: 300 }}>
+                          <p style={{ margin: 0, fontSize: '0.9rem' }}>{iq.message}</p>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', marginTop: 4 }}>
+                            {new Date(iq.created_at).toLocaleString()}
+                          </div>
+                        </td>
+                        <td>
+                          <span className="badge" style={{
+                            background: iq.status === 'RESOLVED' ? 'rgba(34,197,94,0.1)' : iq.status === 'REJECTED' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)',
+                            color: iq.status === 'RESOLVED' ? 'var(--color-success)' : iq.status === 'REJECTED' ? 'var(--color-danger)' : 'var(--color-warning)',
+                            border: `1px solid ${iq.status === 'RESOLVED' ? 'rgba(34,197,94,0.3)' : iq.status === 'REJECTED' ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`
+                          }}>
+                            {iq.status}
+                          </span>
+                        </td>
+                        <td>
+                          {iq.status === 'PENDING' && (
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button 
+                                className="btn btn-outline" 
+                                style={{ padding: '4px 8px', color: 'var(--color-success)', borderColor: 'rgba(39,174,96,0.3)', fontSize: '0.8rem' }}
+                                onClick={() => handleUpdateInquiry(iq.id, 'RESOLVED')}
+                                title="Mark as Resolved"
+                              >
+                                Resolve
+                              </button>
+                              <button 
+                                className="btn btn-outline" 
+                                style={{ padding: '4px 8px', color: 'var(--color-text-muted)', borderColor: 'rgba(255,255,255,0.1)', fontSize: '0.8rem' }}
+                                onClick={() => handleUpdateInquiry(iq.id, 'REJECTED')}
+                                title="Reject Inquiry"
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}

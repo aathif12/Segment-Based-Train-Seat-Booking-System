@@ -30,6 +30,7 @@ func main() {
 	bookingHandler := handlers.NewBookingHandler(bookingService)
 	adminHandler := handlers.NewAdminHandler(bookingService)
 	trainScheduleHandler := handlers.NewTrainScheduleHandler(database)
+	inquiryHandler := handlers.NewInquiryHandler(database)
 
 	// Configure Gin.
 	if cfg.Environment == "production" {
@@ -69,6 +70,9 @@ func main() {
 		// Seats & Availability
 		api.GET("/seats/available", bookingHandler.GetAvailableSeats)
 
+		// Inquiries (Public creation)
+		api.POST("/inquiries", inquiryHandler.CreateInquiry)
+
 		// Bookings (Optional Auth for creating to link UserID)
 		bookings := api.Group("/bookings")
 		bookings.Use(middleware.OptionalAuthMiddleware())
@@ -85,6 +89,7 @@ func main() {
 		{
 			user.GET("/bookings", bookingHandler.GetUserBookings)
 			user.POST("/bookings/:id/request", bookingHandler.RequestChange) // User request refund/reschedule
+			user.GET("/inquiries", inquiryHandler.GetUserInquiries)
 		}
 
 		// Admin (Protected by Basic Auth)
@@ -101,6 +106,9 @@ func main() {
 			admin.POST("/bookings/:id/process", adminHandler.ProcessCancellation) // Refund / Reschedule
 			admin.POST("/waitlist/:id/assign", adminHandler.AssignWaitlistSeat)   // Assign seat to waitlist entry
 			admin.DELETE("/waitlist/:id", adminHandler.CancelWaitlistEntry)       // Cancel waitlist entry
+			
+			admin.GET("/inquiries", inquiryHandler.GetAdminInquiries)
+			admin.PUT("/inquiries/:id/status", inquiryHandler.UpdateInquiryStatus)
 		}
 	}
 

@@ -89,6 +89,7 @@ type Booking struct {
 	SeatID             uint          `gorm:"not null;index" json:"seat_id"`
 	PassengerName      string        `gorm:"size:150;not null" json:"passenger_name"`
 	PassengerEmail     string        `gorm:"size:255;not null" json:"passenger_email"`
+	PassengerPhone     string        `gorm:"size:20;not null;default:'-'" json:"passenger_phone"`
 	PassengerNIC       string        `gorm:"size:20;not null;default:'-'" json:"passenger_nic"`
 	TravelDate         string        `gorm:"size:10;not null;index;default:'2026-08-01'" json:"travel_date"`
 	StartStationOrder  int           `gorm:"not null" json:"start_station_order"`
@@ -117,6 +118,7 @@ type WaitlistEntry struct {
 	SeatID            uint          `gorm:"not null;index" json:"seat_id"`
 	PassengerName     string        `gorm:"size:150;not null" json:"passenger_name"`
 	PassengerEmail    string        `gorm:"size:255;not null" json:"passenger_email"`
+	PassengerPhone    string        `gorm:"size:20;not null;default:'-'" json:"passenger_phone"`
 	PassengerNIC      string        `gorm:"size:20;not null;default:'-'" json:"passenger_nic"`
 	TravelDate        string        `gorm:"size:10;not null;index;default:'2026-08-01'" json:"travel_date"`
 	StartStationOrder int           `gorm:"not null" json:"start_station_order"`
@@ -133,4 +135,20 @@ type WaitlistEntry struct {
 	StartStation      Station       `gorm:"foreignKey:StartStationID" json:"start_station,omitempty"`
 	EndStation        Station       `gorm:"foreignKey:EndStationID" json:"end_station,omitempty"`
 	TrainSchedule     TrainSchedule `gorm:"foreignKey:TrainScheduleID" json:"train_schedule,omitempty"`
+}
+
+// Inquiry represents a user or guest support request.
+type Inquiry struct {
+	ID            uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	BookingID     *uint     `gorm:"index" json:"booking_id,omitempty"`
+	Name          string    `gorm:"size:150;not null" json:"name"`
+	Email         string    `gorm:"size:255;not null" json:"email"`
+	Phone         string    `gorm:"size:20;not null" json:"phone"`
+	ActionType    string    `gorm:"size:50;not null" json:"action_type"`
+	Message       string    `gorm:"type:text;not null" json:"message"`
+	Status        string    `gorm:"size:20;not null;default:'PENDING'" json:"status"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
+
+	Booking       *Booking  `gorm:"foreignKey:BookingID" json:"booking,omitempty"`
 }

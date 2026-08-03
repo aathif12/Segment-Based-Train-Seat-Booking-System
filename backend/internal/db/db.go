@@ -40,6 +40,7 @@ func autoMigrate(db *gorm.DB) error {
 		&models.Booking{},
 		&models.WaitlistEntry{},
 		&models.TrainSchedule{},
+		&models.Inquiry{},
 	)
 	if err != nil {
 		return fmt.Errorf("automigrate: %w", err)

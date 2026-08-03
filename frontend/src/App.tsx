@@ -4,6 +4,7 @@ import HomePage from './pages/HomePage'
 import AdminPage from './pages/AdminPage'
 import AuthPage from './pages/AuthPage'
 import MyBookingsPage from './pages/MyBookingsPage'
+import InquiriesPage from './pages/InquiriesPage'
 import { useToast, ToastContainer } from './components/Toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { LogOut, User } from 'lucide-react'
@@ -30,6 +31,9 @@ const NavBar: React.FC = () => {
         <div className="navbar-links">
           <NavLink to="/" end className={({ isActive }) => `navbar-link${isActive ? ' active' : ''}`}>
             Book Tickets
+          </NavLink>
+          <NavLink to="/inquiries" className={({ isActive }) => `navbar-link${isActive ? ' active' : ''}`}>
+            Inquiries
           </NavLink>
           {user ? (
             <>
@@ -74,6 +78,7 @@ const App: React.FC = () => {
         <Route path="/login" element={<AuthPage addToast={addToast} />} />
         <Route path="/register" element={<AuthPage addToast={addToast} isRegister />} />
         <Route path="/my-bookings" element={<MyBookingsPage addToast={addToast} />} />
+        <Route path="/inquiries" element={<InquiriesPage />} />
       </Routes>
       <ToastContainer toasts={toasts} />
     </AuthProvider>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import { Ticket } from 'lucide-react'
-import { fetchUserBookings, requestBookingChange } from '../api/client'
-import type { Booking } from '../api/client'
+import { Ticket, MessageSquare } from 'lucide-react'
+import { fetchUserBookings, requestBookingChange, fetchUserInquiries } from '../api/client'
+import type { Booking, Inquiry } from '../api/client'
 import type { ToastType } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
@@ -12,7 +12,9 @@ interface MyBookingsPageProps {
 
 const MyBookingsPage: React.FC<MyBookingsPageProps> = ({ addToast }) => {
   const [bookings, setBookings] = useState<Booking[]>([])
+  const [inquiries, setInquiries] = useState<Inquiry[]>([])
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'bookings' | 'inquiries'>('bookings')
   const [rescheduleBookingId, setRescheduleBookingId] = useState<number | null>(null)
   const [rescheduleDate, setRescheduleDate] = useState<string>(new Date().toISOString().split('T')[0])
   const { user } = useAuth()
@@ -26,23 +28,32 @@ const MyBookingsPage: React.FC<MyBookingsPageProps> = ({ addToast }) => {
     loadBookings()
   }, [user])
 
-  const loadBookings = async () => {
+  const loadData = async () => {
+    setLoading(true)
     try {
-      const data = await fetchUserBookings()
-      setBookings(data || [])
+      const [bookingsData, inquiriesData] = await Promise.all([
+        fetchUserBookings(),
+        fetchUserInquiries()
+      ])
+      setBookings(bookingsData || [])
+      setInquiries(inquiriesData || [])
     } catch {
-      addToast('Failed to load your bookings', 'error')
+      addToast('Failed to load data', 'error')
     } finally {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (user) loadData()
+  }, [user])
 
   const handleRefundRequest = async (id: number) => {
     if (!window.confirm('Are you sure you want to request a refund for this booking?')) return
     try {
       await requestBookingChange(id, 'refund')
       addToast('Refund request submitted successfully', 'success')
-      loadBookings()
+      loadData()
     } catch (err: any) {
       addToast(err.response?.data?.error || 'Failed to request refund', 'error')
     }
@@ -57,7 +68,7 @@ const MyBookingsPage: React.FC<MyBookingsPageProps> = ({ addToast }) => {
       await requestBookingChange(id, 'reschedule', rescheduleDate)
       addToast('Reschedule request submitted successfully', 'success')
       setRescheduleBookingId(null)
-      loadBookings()
+      loadData()
     } catch (err: any) {
       addToast(err.response?.data?.error || 'Failed to request reschedule', 'error')
     }
@@ -74,9 +85,30 @@ const MyBookingsPage: React.FC<MyBookingsPageProps> = ({ addToast }) => {
   return (
     <main style={{ padding: '48px 0' }}>
       <div className="container fade-up">
-        <h1 style={{ marginBottom: 30 }}>My Bookings</h1>
-        
-        {bookings.length === 0 ? (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 }}>
+          <h1>Dashboard</h1>
+          <button className="btn btn-primary" onClick={() => navigate('/inquiries')}>
+            New Inquiry
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', gap: 16, marginBottom: 24, borderBottom: '1px solid var(--color-border)', paddingBottom: 16 }}>
+          <button 
+            className={`coach-tab ${activeTab === 'bookings' ? 'active' : ''}`}
+            onClick={() => setActiveTab('bookings')}
+          >
+            My Bookings
+          </button>
+          <button 
+            className={`coach-tab ${activeTab === 'inquiries' ? 'active' : ''}`}
+            onClick={() => setActiveTab('inquiries')}
+          >
+            My Inquiries
+          </button>
+        </div>
+
+        {activeTab === 'bookings' ? (
+          bookings.length === 0 ? (
           <div className="glass-card empty-state">
             <div className="icon"><Ticket size={48} color="var(--color-text-muted)" /></div>
             <h3>No trips planned</h3>
@@ -179,9 +211,54 @@ const MyBookingsPage: React.FC<MyBookingsPageProps> = ({ addToast }) => {
               </table>
             </div>
           </div>
+        ) : (
+          // Inquiries Tab
+          inquiries.length === 0 ? (
+            <div className="glass-card empty-state">
+              <div className="icon"><MessageSquare size={48} color="var(--color-text-muted)" /></div>
+              <h3>No inquiries found</h3>
+              <p>You haven't submitted any support requests yet.</p>
+            </div>
+          ) : (
+            <div className="glass-card" style={{ overflow: 'hidden' }}>
+              <table className="revenue-table" style={{ width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Booking Ref</th>
+                    <th>Type</th>
+                    <th>Message</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inquiries.map(iq => (
+                    <tr key={iq.id}>
+                      <td style={{ color: 'var(--color-text-muted)' }}>#{iq.id}</td>
+                      <td>{iq.booking_id ? `#${iq.booking_id}` : '-'}</td>
+                      <td>{iq.action_type}</td>
+                      <td style={{ maxWidth: 300, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{iq.message}</td>
+                      <td>
+                        <span className="badge" style={{
+                          background: iq.status === 'RESOLVED' ? 'rgba(34,197,94,0.1)' : iq.status === 'REJECTED' ? 'rgba(239,68,68,0.1)' : 'rgba(245,158,11,0.1)',
+                          color: iq.status === 'RESOLVED' ? 'var(--color-success)' : iq.status === 'REJECTED' ? 'var(--color-danger)' : 'var(--color-warning)',
+                          border: `1px solid ${iq.status === 'RESOLVED' ? 'rgba(34,197,94,0.3)' : iq.status === 'REJECTED' ? 'rgba(239,68,68,0.3)' : 'rgba(245,158,11,0.3)'}`
+                        }}>
+                          {iq.status}
+                        </span>
+                      </td>
+                      <td style={{ fontSize: '0.85rem' }}>{new Date(iq.created_at).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
         )}
       </div>
     </main>
+
   )
 }
 

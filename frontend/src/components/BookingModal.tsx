@@ -24,13 +24,14 @@ const BookingModal: React.FC<BookingModalProps> = ({
   const navigate = useNavigate()
   const [name, setName] = useState(user?.name || '')
   const [email, setEmail] = useState(user?.email || '')
+  const [phone, setPhone] = useState('')
   const [nic, setNic] = useState('')
   const [loading, setLoading] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
   const [bookingId, setBookingId] = useState<number | null>(null)
 
   const handleBook = async () => {
-    if (!name.trim() || !email.trim() || !nic.trim()) {
+    if (!name.trim() || !email.trim() || !phone.trim() || !nic.trim()) {
       addToast('Please fill in all fields', 'error')
       return
     }
@@ -41,6 +42,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
         seat_id: seat.id,
         passenger_name: name.trim(),
         passenger_email: email.trim(),
+        passenger_phone: phone.trim(),
         passenger_nic: nic.trim(),
         travel_date: travelDate,
         start_station_id: fromStation.id,
@@ -74,7 +76,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
       navigate('/login')
       return
     }
-    if (!name.trim() || !email.trim() || !nic.trim()) {
+    if (!name.trim() || !email.trim() || !phone.trim() || !nic.trim()) {
       addToast('Please fill in your details to join the waitlist', 'error')
       return
     }
@@ -84,6 +86,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
         seat_id: seat.id,
         passenger_name: name.trim(),
         passenger_email: email.trim(),
+        passenger_phone: phone.trim(),
         passenger_nic: nic.trim(),
         travel_date: travelDate,
         start_station_id: fromStation.id,
@@ -223,6 +226,18 @@ const BookingModal: React.FC<BookingModalProps> = ({
                   placeholder="e.g. aathavan@example.com"
                   value={email}
                   onChange={e => setEmail(e.target.value)}
+                  disabled={loading}
+                />
+              </div>
+              <div className="form-group">
+                <label className="form-label" htmlFor="passenger-phone">Phone Number</label>
+                <input
+                  id="passenger-phone"
+                  className="form-input"
+                  type="tel"
+                  placeholder="e.g. 0771234567"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
                   disabled={loading}
                 />
               </div>

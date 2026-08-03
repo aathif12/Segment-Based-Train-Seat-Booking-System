@@ -56,6 +56,7 @@ export interface Booking {
   seat_id: number
   passenger_name: string
   passenger_email: string
+  passenger_phone: string
   passenger_nic: string
   start_station_order: number
   end_station_order: number
@@ -76,6 +77,7 @@ export interface WaitlistEntry {
   seat_id: number
   passenger_name: string
   passenger_email: string
+  passenger_phone: string
   passenger_nic: string
   start_station_order: number
   end_station_order: number
@@ -104,6 +106,7 @@ export interface BookingRequest {
   seat_id: number
   passenger_name: string
   passenger_email: string
+  passenger_phone: string
   passenger_nic: string
   travel_date: string
   start_station_id: number
@@ -124,6 +127,29 @@ export interface RevenueRecord {
   total_revenue: number
   booking_count: number
 }
+
+export interface Inquiry {
+  id: number
+  booking_id?: number
+  name: string
+  email: string
+  phone: string
+  action_type: string
+  message: string
+  status: 'PENDING' | 'RESOLVED' | 'REJECTED'
+  created_at: string
+  booking?: Booking
+}
+
+export interface CreateInquiryReq {
+  booking_id?: number
+  name: string
+  email: string
+  phone: string
+  action_type: string
+  message: string
+}
+
 
 // ── API Functions ────────────────────────────────────────────────────────────
 
@@ -178,6 +204,12 @@ export const loginUser = (data: any) =>
 export const fetchUserBookings = () => 
   api.get<{ data: Booking[] }>('/user/bookings').then(r => r.data.data)
 
+export const createInquiry = (req: CreateInquiryReq) =>
+  api.post<{ message: string; data: Inquiry }>('/inquiries', req).then(r => r.data)
+
+export const fetchUserInquiries = () =>
+  api.get<{ data: Inquiry[] }>('/user/inquiries').then(r => r.data.data)
+
 // Admin APIs
 export const fetchOccupancy = () =>
   api.get<{ data: CoachOccupancy[] }>('/admin/occupancy').then(r => r.data.data)
@@ -210,5 +242,11 @@ export const assignWaitlistSeat = (entryId: number, newSeatId: number, newTrainS
 
 export const adminCancelWaitlistEntry = (id: number) =>
   api.delete<{ message: string }>(`/admin/waitlist/${id}`).then(r => r.data)
+
+export const fetchAdminInquiries = () =>
+  api.get<{ data: Inquiry[] }>('/admin/inquiries').then(r => r.data.data)
+
+export const updateInquiryStatus = (id: number, status: string) =>
+  api.put<{ message: string }>(`/admin/inquiries/${id}/status`, { status }).then(r => r.data)
 
 export default api

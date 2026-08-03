@@ -38,6 +38,7 @@ type BookingRequest struct {
 	SeatID          uint   `json:"seat_id" binding:"required"`
 	PassengerName   string `json:"passenger_name" binding:"required,min=2,max=150"`
 	PassengerEmail  string `json:"passenger_email" binding:"required,email"`
+	PassengerPhone  string `json:"passenger_phone" binding:"required,min=10,max=15"`
 	PassengerNIC    string `json:"passenger_nic" binding:"required,min=10,max=12"`
 	TravelDate      string `json:"travel_date" binding:"required"`
 	StartStationID  uint   `json:"start_station_id" binding:"required"`
@@ -159,6 +160,7 @@ func (s *BookingService) Book(req BookingRequest) (*models.Booking, error) {
 			UserID:            req.UserID,
 			PassengerName:     req.PassengerName,
 			PassengerEmail:    req.PassengerEmail,
+			PassengerPhone:    req.PassengerPhone,
 			PassengerNIC:      req.PassengerNIC,
 			TravelDate:        req.TravelDate,
 			StartStationOrder: startStation.OrderInRoute,
@@ -396,6 +398,7 @@ func (s *BookingService) AddToWaitlist(req BookingRequest) (*models.WaitlistEntr
 		UserID:            req.UserID,
 		PassengerName:     req.PassengerName,
 		PassengerEmail:    req.PassengerEmail,
+		PassengerPhone:    req.PassengerPhone,
 		PassengerNIC:      req.PassengerNIC,
 		TravelDate:        req.TravelDate,
 		StartStationOrder: startStation.OrderInRoute,
