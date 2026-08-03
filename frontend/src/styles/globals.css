@@ -447,6 +447,8 @@ a:hover { color: var(--color-accent); }
 .modal {
   width: 100%;
   max-width: 520px;
+  max-height: 90vh;
+  overflow-y: auto;
   padding: 36px;
   animation: fadeUp 0.3s ease;
   position: relative;
