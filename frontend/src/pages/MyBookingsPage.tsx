@@ -211,7 +211,7 @@ const MyBookingsPage: React.FC<MyBookingsPageProps> = ({ addToast }) => {
               </table>
             </div>
           </div>
-        ) : (
+        )) : (
           // Inquiries Tab
           inquiries.length === 0 ? (
             <div className="glass-card empty-state">
