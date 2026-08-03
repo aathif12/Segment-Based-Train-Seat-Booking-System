@@ -136,6 +136,15 @@ func (s *BookingService) Book(req BookingRequest) (*models.Booking, error) {
 			return errors.New("start station must be before end station on the route")
 		}
 
+		var sched models.TrainSchedule
+		if err := tx.First(&sched, req.TrainScheduleID).Error; err != nil {
+			return fmt.Errorf("train schedule not found: %w", err)
+		}
+
+		if isPastDeparture(req.TravelDate, sched.DepartureTime) {
+			return errors.New("cannot book a seat after the train has departed")
+		}
+
 		// 3. Check for overlapping bookings — now safe because the seat row is locked.
 		var conflictCount int64
 		tx.Model(&models.Booking{}).
@@ -209,6 +218,15 @@ func (s *BookingService) RequestChange(bookingID uint, action string, requestedD
 
 		if booking.Status != models.BookingStatusConfirmed {
 			return errors.New("only confirmed bookings can be modified")
+		}
+
+		var sched models.TrainSchedule
+		if err := tx.First(&sched, booking.TrainScheduleID).Error; err != nil {
+			return fmt.Errorf("train schedule not found: %w", err)
+		}
+
+		if isPastDeparture(booking.TravelDate, sched.DepartureTime) {
+			return errors.New("cannot request a change after the train has departed")
 		}
 
 		if action == "refund" {
@@ -385,6 +403,14 @@ func (s *BookingService) promoteWaitlist(cancelled models.Booking) {
 
 // AddToWaitlist queues a passenger for a fully-booked segment.
 func (s *BookingService) AddToWaitlist(req BookingRequest) (*models.WaitlistEntry, error) {
+	var sched models.TrainSchedule
+	if err := s.db.First(&sched, req.TrainScheduleID).Error; err != nil {
+		return nil, fmt.Errorf("train schedule not found: %w", err)
+	}
+	if isPastDeparture(req.TravelDate, sched.DepartureTime) {
+		return nil, errors.New("cannot join waitlist after the train has departed")
+	}
+
 	var startStation, endStation models.Station
 	if err := s.db.First(&startStation, req.StartStationID).Error; err != nil {
 		return nil, fmt.Errorf("start station not found: %w", err)
@@ -531,7 +557,7 @@ func (s *BookingService) AdminCancelWaitlistEntry(id uint) error {
 // GetBookingByID fetches a single booking with all associations.
 func (s *BookingService) GetBookingByID(id uint) (*models.Booking, error) {
 	var booking models.Booking
-	if err := s.db.Preload("Seat.Coach").Preload("StartStation").Preload("EndStation").
+	if err := s.db.Preload("Seat.Coach").Preload("StartStation").Preload("EndStation").Preload("TrainSchedule").
 		First(&booking, id).Error; err != nil {
 		return nil, err
 	}
@@ -541,7 +567,7 @@ func (s *BookingService) GetBookingByID(id uint) (*models.Booking, error) {
 // GetAllBookings fetches all bookings ordered by newest first.
 func (s *BookingService) GetAllBookings() ([]models.Booking, error) {
 	var bookings []models.Booking
-	if err := s.db.Preload("Seat.Coach").Preload("StartStation").Preload("EndStation").
+	if err := s.db.Preload("Seat.Coach").Preload("StartStation").Preload("EndStation").Preload("TrainSchedule").
 		Order("created_at DESC").Find(&bookings).Error; err != nil {
 		return nil, err
 	}
@@ -552,7 +578,7 @@ func (s *BookingService) GetAllBookings() ([]models.Booking, error) {
 func (s *BookingService) GetUserBookings(userID uint) ([]models.Booking, error) {
 	var bookings []models.Booking
 	if err := s.db.Where("user_id = ?", userID).
-		Preload("Seat.Coach").Preload("StartStation").Preload("EndStation").
+		Preload("Seat.Coach").Preload("StartStation").Preload("EndStation").Preload("TrainSchedule").
 		Order("created_at DESC").Find(&bookings).Error; err != nil {
 		return nil, err
 	}
@@ -562,7 +588,7 @@ func (s *BookingService) GetUserBookings(userID uint) ([]models.Booking, error) 
 // GetAllWaitlist fetches all waitlist entries.
 func (s *BookingService) GetAllWaitlist() ([]models.WaitlistEntry, error) {
 	var waitlist []models.WaitlistEntry
-	if err := s.db.Preload("User").Preload("Seat.Coach").Preload("StartStation").Preload("EndStation").
+	if err := s.db.Preload("User").Preload("Seat.Coach").Preload("StartStation").Preload("EndStation").Preload("TrainSchedule").
 		Order("created_at DESC").Find(&waitlist).Error; err != nil {
 		return nil, err
 	}
@@ -606,6 +632,24 @@ func (s *BookingService) GetOccupancyStats() ([]CoachOccupancy, error) {
 	}
 
 	return stats, nil
+}
+
+// isPastDeparture checks if a given travel date and departure time is in the past.
+func isPastDeparture(travelDate, departureTime string) bool {
+	if travelDate == "" || departureTime == "" {
+		return false
+	}
+	// Normalize departure time to HH:mm:ss if it is only HH:mm
+	if len(departureTime) == 5 {
+		departureTime += ":00"
+	}
+	t, err := time.Parse("2006-01-02T15:04:05", travelDate+"T"+departureTime)
+	if err != nil {
+		return false
+	}
+	// Subtract 30 mins as the cutoff, matching frontend logic, or just return time.Now().After(t).
+	// Let's stick to strict departure time (or cutoff if preferred, we'll just do departure).
+	return time.Now().After(t)
 }
 
 // RevenueBySegment returns total confirmed revenue grouped by start→end station pair.

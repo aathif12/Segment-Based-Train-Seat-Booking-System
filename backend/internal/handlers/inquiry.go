@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 	"log"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/lfs-railway/backend/internal/models"
@@ -40,7 +41,7 @@ func (h *InquiryHandler) CreateInquiry(c *gin.Context) {
 	// Verify booking if provided
 	if req.BookingID != nil {
 		var booking models.Booking
-		if err := h.db.First(&booking, *req.BookingID).Error; err != nil {
+		if err := h.db.Preload("TrainSchedule").First(&booking, *req.BookingID).Error; err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "booking not found"})
 			return
 		}
@@ -48,6 +49,19 @@ func (h *InquiryHandler) CreateInquiry(c *gin.Context) {
 		if booking.PassengerEmail != req.Email || booking.PassengerPhone != req.Phone {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "email and phone do not match the booking record"})
 			return
+		}
+
+		// Prevent inquiries for past bookings if they are change requests (Refund/Reschedule/Seat Change)
+		if req.ActionType != "General" {
+			dtStr := booking.TravelDate + "T" + booking.TrainSchedule.DepartureTime
+			if len(booking.TrainSchedule.DepartureTime) == 5 {
+				dtStr = booking.TravelDate + "T" + booking.TrainSchedule.DepartureTime + ":00"
+			}
+			t, err := time.Parse("2006-01-02T15:04:05", dtStr)
+			if err == nil && time.Now().After(t) {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "cannot submit change requests for past bookings"})
+				return
+			}
 		}
 	}
 

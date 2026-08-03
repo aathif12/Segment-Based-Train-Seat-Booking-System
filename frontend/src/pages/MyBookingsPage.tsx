@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react'
-import { Ticket, MessageSquare } from 'lucide-react'
+import { Ticket, AlertCircle, MessageSquare } from 'lucide-react'
 import { fetchUserBookings, requestBookingChange, fetchUserInquiries } from '../api/client'
 import type { Booking, Inquiry } from '../api/client'
+import { isPastDeparture } from '../utils/date'
 import type { ToastType } from '../components/Toast'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
@@ -168,24 +169,27 @@ const MyBookingsPage: React.FC<MyBookingsPageProps> = ({ addToast }) => {
                         )}
                       </td>
                       <td>
-                        {b.status === 'CONFIRMED' && rescheduleBookingId !== b.id && (
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            <button 
-                              className="btn btn-outline" 
-                              style={{ padding: '4px 8px', color: 'var(--color-danger)', borderColor: 'rgba(235,87,87,0.3)', fontSize: '0.8rem' }}
-                              onClick={() => handleRefundRequest(b.id)}
-                            >
-                              Refund
-                            </button>
-                            <button 
-                              className="btn btn-outline" 
-                              style={{ padding: '4px 8px', color: '#2d9cdb', borderColor: 'rgba(45,156,219,0.3)', fontSize: '0.8rem' }}
-                              onClick={() => setRescheduleBookingId(b.id)}
-                            >
-                              Reschedule
-                            </button>
-                          </div>
-                        )}
+                        {(() => {
+                          const isExpired = isPastDeparture(b.travel_date, b.train_schedule?.departure_time || '00:00:00')
+                          return b.status === 'CONFIRMED' && !isExpired && rescheduleBookingId !== b.id && (
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button 
+                                className="btn btn-outline" 
+                                style={{ padding: '4px 8px', color: 'var(--color-danger)', borderColor: 'rgba(235,87,87,0.3)', fontSize: '0.8rem' }}
+                                onClick={() => handleRefundRequest(b.id)}
+                              >
+                                Refund
+                              </button>
+                              <button 
+                                className="btn btn-outline" 
+                                style={{ padding: '4px 8px', color: '#2d9cdb', borderColor: 'rgba(45,156,219,0.3)', fontSize: '0.8rem' }}
+                                onClick={() => setRescheduleBookingId(b.id)}
+                              >
+                                Reschedule
+                              </button>
+                            </div>
+                          )
+                        })()}
                         {rescheduleBookingId === b.id && (
                           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                             <input 

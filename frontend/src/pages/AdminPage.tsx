@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Settings, LogIn, TrendingUp, Users, AlertCircle, Trash2, Ticket, LogOut, List, Map, RefreshCcw, DollarSign } from 'lucide-react'
 import { fetchOccupancy, fetchRevenue, fetchBookings, fetchWaitlist, setAuthCredentials, adminCancelBooking, processCancellation, adminCancelWaitlistEntry, fetchTrainSchedules, fetchAvailableSeats, fetchAdminInquiries, updateInquiryStatus } from '../api/client'
 import type { CoachOccupancy, RevenueRecord, Booking, WaitlistEntry, TrainSchedule, AvailableSeat, Inquiry } from '../api/client'
+import { isPastDeparture } from '../utils/date'
 import type { ToastType } from '../components/Toast'
 import SeatMap from '../components/SeatMap'
 import AdminRescheduleModal from '../components/AdminRescheduleModal'
@@ -587,7 +588,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                         </td>
                         <td>
                           {(() => {
-                            const isExpired = new Date(w.travel_date) < new Date(new Date().toISOString().split('T')[0])
+                            const isExpired = isPastDeparture(w.travel_date, w.train_schedule?.departure_time || '00:00:00')
                             
                             return w.status === 'WAITLISTED' && (
                               <div style={{ display: 'flex', gap: 8 }}>

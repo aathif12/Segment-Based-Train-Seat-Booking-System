@@ -70,6 +70,7 @@ export interface Booking {
   seat: Seat
   start_station: Station
   end_station: Station
+  train_schedule: TrainSchedule
 }
 
 export interface WaitlistEntry {
@@ -89,6 +90,7 @@ export interface WaitlistEntry {
   seat: Seat
   start_station: Station
   end_station: Station
+  train_schedule: TrainSchedule
 }
 
 export interface User {
