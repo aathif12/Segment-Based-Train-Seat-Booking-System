@@ -31,7 +31,7 @@ function getBookingStatus(departureTime: string, travelDate: string, now: Date) 
   const mins = minutesToCutoff(departureTime, travelDate, now)
 
   if (mins <= 0) {
-    // Already past cutoff — check if train has fully departed
+    // Already past cutoff - check if train has fully departed
     const [hStr, mStr] = departureTime.split(':')
     if (travelDate === TODAY()) {
       const dep = new Date(now)
@@ -91,7 +91,7 @@ interface TrainSchedulesProps {
 const TrainSchedules: React.FC<TrainSchedulesProps> = ({
   schedules, loading, error, selectedId, travelDate, onSelect,
 }) => {
-  // Live clock — ticks every 30 s so cutoff badges stay accurate
+  // Live clock - ticks every 30 s so cutoff badges stay accurate
   const [now, setNow] = useState<Date>(new Date())
   useEffect(() => {
     const id = setInterval(() => setNow(new Date()), 30_000)
@@ -236,7 +236,7 @@ const TrainSchedules: React.FC<TrainSchedulesProps> = ({
                 {booking.closed ? (
                   <div className="train-card__closed-msg">
                     <Lock size={13} />
-                    Booking window closed — no new reservations accepted
+                    Booking window closed - no new reservations accepted
                   </div>
                 ) : (
                   <>

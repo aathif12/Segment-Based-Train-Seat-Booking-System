@@ -150,7 +150,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
               Coach {seat.coach.name}, Seat {seat.seat_number}
             </p>
 
-            {/* Login warning — only shown to guests */}
+            {/* Login warning - only shown to guests */}
             {!user && (
               <div style={{
                 background: 'rgba(242,153,74,0.1)',

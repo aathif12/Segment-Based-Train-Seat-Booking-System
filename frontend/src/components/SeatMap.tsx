@@ -47,7 +47,7 @@ const SeatMap: React.FC<SeatMapProps> = ({ seats, selectedSeatId, onSelect }) =>
         <div>
           <h2>Reserved Coaches</h2>
           <p style={{ color: 'var(--color-text-muted)', fontSize: '0.9rem', marginTop: 4 }}>
-            Coach {current} — {availableCount} of {currentSeats.length} seats available
+            Coach {current} - {availableCount} of {currentSeats.length} seats available
           </p>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12 }}>
@@ -110,8 +110,8 @@ const SeatMap: React.FC<SeatMapProps> = ({ seats, selectedSeatId, onSelect }) =>
                   onClick={() => onSelect(seat)}
                   title={
                     seat.is_available
-                      ? `Seat ${seat.seat_number} — LKR ${seat.fare.toLocaleString()}`
-                      : `Seat ${seat.seat_number} — Booked (Click to Waitlist)`
+                      ? `Seat ${seat.seat_number} - LKR ${seat.fare.toLocaleString()}`
+                      : `Seat ${seat.seat_number} - Booked (Click to Waitlist)`
                   }
                   role="button"
                   aria-label={`Seat ${seat.seat_number} ${seat.is_available ? 'available' : 'booked'}`}

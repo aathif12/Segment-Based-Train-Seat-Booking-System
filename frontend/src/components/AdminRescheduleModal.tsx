@@ -145,7 +145,7 @@ const AdminRescheduleModal: React.FC<AdminRescheduleModalProps> = ({
 
         {selectedSeatId && (
           <p style={{ color: 'var(--color-success)', fontSize: '0.9rem', marginBottom: 12, textAlign: 'center' }}>
-            ✓ Seat selected — click Confirm Reschedule to proceed
+            ✓ Seat selected - click Confirm Reschedule to proceed
           </p>
         )}
 

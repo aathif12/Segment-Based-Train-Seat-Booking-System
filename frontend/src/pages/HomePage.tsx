@@ -96,7 +96,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
       const data = await fetchAvailableSeats(fromStation.order_in_route, toStation.order_in_route, travelDate, train.id)
       setSeats(data)
       if (data.filter(s => s.is_available).length === 0) {
-        addToast('No seats available — try waitlist after selecting a seat', 'info')
+        addToast('No seats available - try waitlist after selecting a seat', 'info')
       }
     } catch {
       addToast('Failed to fetch seat availability', 'error')
@@ -131,7 +131,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
         <div className="container">
           <div className="hero-eyebrow fade-in">
             <Train size={16} />
-            Colombo Fort — Badulla Scenic Line
+            Colombo Fort - Badulla Scenic Line
           </div>
 
           <h1 className="hero-title fade-up">
@@ -139,7 +139,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
           </h1>
 
           <p className="hero-subtitle fade-up" style={{ animationDelay: '0.1s' }}>
-            Segment-based reserved seating — one physical seat, multiple passengers,
+            Segment-based reserved seating - one physical seat, multiple passengers,
             each paying only for the distance they actually travel.
           </p>
 
@@ -273,7 +273,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
       </section>
 
       {/* ═══════════════════════════════════════════════════════════
-          STEP 2 — TRAIN SCHEDULE RESULTS
+          STEP 2 - TRAIN SCHEDULE RESULTS
       ═══════════════════════════════════════════════════════════ */}
       {searched && (
         <section id="schedules-section" className="train-schedules-section">
@@ -286,7 +286,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
               <h2 className="schedules-title">Available Trains</h2>
               {!loadingSchedules && schedules.length > 0 && (
                 <p className="schedules-subtitle">
-                  {schedules.length} train{schedules.length !== 1 ? 's' : ''} found — select one to view seat availability
+                  {schedules.length} train{schedules.length !== 1 ? 's' : ''} found - select one to view seat availability
                 </p>
               )}
             </div>
@@ -304,7 +304,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
       )}
 
       {/* ═══════════════════════════════════════════════════════════
-          STEP 3 — SEAT MAP
+          STEP 3 - SEAT MAP
       ═══════════════════════════════════════════════════════════ */}
       {selectedTrain && (
         <section id="seatmap-section" className="seats-section">
@@ -320,7 +320,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                 <div>
                   <div className="selected-train-banner__label">Selected Train</div>
                   <div className="selected-train-banner__name">
-                    #{selectedTrain.train_number} — {selectedTrain.train_name}
+                    #{selectedTrain.train_number} - {selectedTrain.train_name}
                     <span className="selected-train-banner__time">
                       {selectedTrain.departure_time} → {selectedTrain.arrival_time}
                       {selectedTrain.is_overnight ? ' (+1 day)' : ''}

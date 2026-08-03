@@ -64,7 +64,7 @@ const AdminWaitlistAssignModal: React.FC<AdminWaitlistAssignModalProps> = ({
     setSubmitting(true)
     try {
       await assignWaitlistSeat(entry.id, selectedSeatId, scheduleId)
-      addToast('Seat assigned — waitlist entry promoted to confirmed booking!', 'success')
+      addToast('Seat assigned - waitlist entry promoted to confirmed booking!', 'success')
       onSuccess()
     } catch (err: any) {
       addToast(err.response?.data?.error || 'Failed to assign seat', 'error')
@@ -77,7 +77,7 @@ const AdminWaitlistAssignModal: React.FC<AdminWaitlistAssignModalProps> = ({
     <div className="modal-backdrop">
       <div className="modal-content" style={{ maxWidth: 820, width: '95%', maxHeight: '90vh', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
         <div style={{ flex: '0 0 auto', marginBottom: 20 }}>
-          <h2>Assign Seat — Waitlist #{entry.id}</h2>
+          <h2>Assign Seat - Waitlist #{entry.id}</h2>
           <p style={{ color: 'var(--color-text-muted)', marginBottom: 12 }}>
             Passenger: <strong>{entry.passenger_name}</strong> ({entry.passenger_email})<br />
             Route: {entry.start_station.name} → {entry.end_station.name}<br />
@@ -126,7 +126,7 @@ const AdminWaitlistAssignModal: React.FC<AdminWaitlistAssignModalProps> = ({
 
         {selectedSeatId && (
           <p style={{ color: 'var(--color-success)', fontSize: '0.9rem', marginBottom: 12, textAlign: 'center' }}>
-            ✓ Seat selected — click Assign to confirm
+            ✓ Seat selected - click Assign to confirm
           </p>
         )}
 
