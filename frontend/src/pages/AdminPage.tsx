@@ -493,78 +493,82 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                           )}
                         </td>
                         <td>
-                          <div style={{ display: 'flex', gap: 8 }}>
-                            {b.status === 'REFUND_REQUESTED' && (
-                              <>
+                          {isPastDeparture(b.travel_date, b.train_schedule?.departure_time || '00:00') ? (
+                            <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>Departed</span>
+                          ) : (
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              {b.status === 'REFUND_REQUESTED' && (
+                                <>
+                                  <button 
+                                    className="btn btn-outline" 
+                                    style={{ padding: '4px 8px', color: 'var(--color-success)', borderColor: 'rgba(39,174,96,0.3)', fontSize: '0.8rem' }}
+                                    onClick={() => handleProcessCancellation(b.id, 'refund')}
+                                    title="Approve Refund"
+                                  >
+                                    <DollarSign size={14} style={{ marginRight: 4 }} /> Refund
+                                  </button>
+                                  <button 
+                                    className="btn btn-outline" 
+                                    style={{ padding: '4px 8px', color: 'var(--color-text-muted)', borderColor: 'rgba(255,255,255,0.1)', fontSize: '0.8rem' }}
+                                    onClick={() => handleProcessCancellation(b.id, 'reject')}
+                                    title="Reject Request"
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                              {b.status === 'RESCHEDULE_REQUESTED' && (
+                                <>
+                                  <button 
+                                    className="btn btn-outline" 
+                                    style={{ padding: '4px 8px', color: '#2d9cdb', borderColor: 'rgba(45,156,219,0.3)', fontSize: '0.8rem' }}
+                                    onClick={() => setRescheduleModalBooking(b)}
+                                    title="Approve and Reschedule"
+                                  >
+                                    <RefreshCcw size={14} style={{ marginRight: 4 }} /> Process
+                                  </button>
+                                  <button 
+                                    className="btn btn-outline" 
+                                    style={{ padding: '4px 8px', color: 'var(--color-text-muted)', borderColor: 'rgba(255,255,255,0.1)', fontSize: '0.8rem' }}
+                                    onClick={() => handleProcessCancellation(b.id, 'reject')}
+                                    title="Reject Request"
+                                  >
+                                    Reject
+                                  </button>
+                                </>
+                              )}
+                              {b.status === 'CONFIRMED' && (
+                                <>
+                                  <button 
+                                    className="btn btn-outline" 
+                                    style={{ padding: '4px 8px', color: '#2d9cdb', borderColor: 'rgba(45,156,219,0.3)', fontSize: '0.8rem' }}
+                                    onClick={() => setRescheduleModalBooking(b)}
+                                    title="Reschedule Booking"
+                                  >
+                                    <RefreshCcw size={14} style={{ marginRight: 4 }} /> Reschedule
+                                  </button>
+                                  <button 
+                                    className="btn btn-outline" 
+                                    style={{ padding: '4px 8px', color: 'var(--color-danger)', borderColor: 'rgba(235,87,87,0.3)', fontSize: '0.8rem' }}
+                                    onClick={() => handleCancelBooking(b.id)}
+                                    title="Cancel Booking"
+                                  >
+                                    <Trash2 size={14} style={{ marginRight: 4 }} /> Cancel
+                                  </button>
+                                </>
+                              )}
+                              {b.status === 'CANCEL_REQUESTED' && (
                                 <button 
                                   className="btn btn-outline" 
-                                  style={{ padding: '4px 8px', color: 'var(--color-success)', borderColor: 'rgba(39,174,96,0.3)', fontSize: '0.8rem' }}
-                                  onClick={() => handleProcessCancellation(b.id, 'refund')}
-                                  title="Approve Refund"
-                                >
-                                  <DollarSign size={14} style={{ marginRight: 4 }} /> Refund
-                                </button>
-                                <button 
-                                  className="btn btn-outline" 
-                                  style={{ padding: '4px 8px', color: 'var(--color-text-muted)', borderColor: 'rgba(255,255,255,0.1)', fontSize: '0.8rem' }}
-                                  onClick={() => handleProcessCancellation(b.id, 'reject')}
-                                  title="Reject Request"
-                                >
-                                  Reject
-                                </button>
-                              </>
-                            )}
-                            {b.status === 'RESCHEDULE_REQUESTED' && (
-                              <>
-                                <button 
-                                  className="btn btn-outline" 
-                                  style={{ padding: '4px 8px', color: '#2d9cdb', borderColor: 'rgba(45,156,219,0.3)', fontSize: '0.8rem' }}
-                                  onClick={() => setRescheduleModalBooking(b)}
-                                  title="Approve and Reschedule"
-                                >
-                                  <RefreshCcw size={14} style={{ marginRight: 4 }} /> Process
-                                </button>
-                                <button 
-                                  className="btn btn-outline" 
-                                  style={{ padding: '4px 8px', color: 'var(--color-text-muted)', borderColor: 'rgba(255,255,255,0.1)', fontSize: '0.8rem' }}
-                                  onClick={() => handleProcessCancellation(b.id, 'reject')}
-                                  title="Reject Request"
-                                >
-                                  Reject
-                                </button>
-                              </>
-                            )}
-                            {b.status === 'CONFIRMED' && (
-                              <>
-                                <button 
-                                  className="btn btn-outline" 
-                                  style={{ padding: '4px 8px', color: '#2d9cdb', borderColor: 'rgba(45,156,219,0.3)', fontSize: '0.8rem' }}
-                                  onClick={() => setRescheduleModalBooking(b)}
-                                  title="Reschedule Booking"
-                                >
-                                  <RefreshCcw size={14} style={{ marginRight: 4 }} /> Reschedule
-                                </button>
-                                <button 
-                                  className="btn btn-outline" 
-                                  style={{ padding: '4px 8px', color: 'var(--color-danger)', borderColor: 'rgba(235,87,87,0.3)', fontSize: '0.8rem' }}
+                                  style={{ padding: '4px 8px', color: 'var(--color-danger)', borderColor: 'rgba(235,87,87,0.3)' }}
                                   onClick={() => handleCancelBooking(b.id)}
-                                  title="Cancel Booking"
+                                  title="Force Cancel"
                                 >
-                                  <Trash2 size={14} style={{ marginRight: 4 }} /> Cancel
+                                  <Trash2 size={16} />
                                 </button>
-                              </>
-                            )}
-                            {b.status === 'CANCEL_REQUESTED' && (
-                              <button 
-                                className="btn btn-outline" 
-                                style={{ padding: '4px 8px', color: 'var(--color-danger)', borderColor: 'rgba(235,87,87,0.3)' }}
-                                onClick={() => handleCancelBooking(b.id)}
-                                title="Force Cancel"
-                              >
-                                <Trash2 size={16} />
-                              </button>
-                            )}
-                          </div>
+                              )}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     ))}
