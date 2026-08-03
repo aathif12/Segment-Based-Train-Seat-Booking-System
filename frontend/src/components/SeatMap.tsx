@@ -107,11 +107,11 @@ const SeatMap: React.FC<SeatMapProps> = ({ seats, selectedSeatId, onSelect }) =>
                 <div
                   key={seat.id}
                   className={cls}
-                  onClick={() => seat.is_available && onSelect(seat)}
+                  onClick={() => onSelect(seat)}
                   title={
                     seat.is_available
                       ? `Seat ${seat.seat_number} — LKR ${seat.fare.toLocaleString()}`
-                      : `Seat ${seat.seat_number} — Booked`
+                      : `Seat ${seat.seat_number} — Booked (Click to Waitlist)`
                   }
                   role="button"
                   aria-label={`Seat ${seat.seat_number} ${seat.is_available ? 'available' : 'booked'}`}

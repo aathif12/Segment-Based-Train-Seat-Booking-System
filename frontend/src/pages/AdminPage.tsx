@@ -31,6 +31,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
   const [loading, setLoading] = useState(false)
   const [rescheduleModalBooking, setRescheduleModalBooking] = useState<Booking | null>(null)
   const [assignModalEntry, setAssignModalEntry] = useState<WaitlistEntry | null>(null)
+  const [activeInquiryId, setActiveInquiryId] = useState<number | null>(null)
 
   const loadDashboardData = async () => {
     try {
@@ -669,6 +670,19 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
                         <td>
                           {iq.status === 'PENDING' && (
                             <div style={{ display: 'flex', gap: 8 }}>
+                              {iq.booking_id && (iq.action_type === 'Reschedule' || iq.action_type === 'Change Seat') && (
+                                <button
+                                  className="btn btn-primary"
+                                  style={{ padding: '4px 8px', fontSize: '0.8rem' }}
+                                  onClick={() => {
+                                    setActiveInquiryId(iq.id)
+                                    setRescheduleModalBooking(iq.booking!)
+                                  }}
+                                  title="Process Change"
+                                >
+                                  Process
+                                </button>
+                              )}
                               <button 
                                 className="btn btn-outline" 
                                 style={{ padding: '4px 8px', color: 'var(--color-success)', borderColor: 'rgba(39,174,96,0.3)', fontSize: '0.8rem' }}
@@ -740,11 +754,18 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
       </div>
 
       {rescheduleModalBooking && (
-        <AdminRescheduleModal
-          booking={rescheduleModalBooking}
-          onClose={() => setRescheduleModalBooking(null)}
+        <AdminRescheduleModal 
+          booking={rescheduleModalBooking} 
+          onClose={() => {
+            setRescheduleModalBooking(null)
+            setActiveInquiryId(null)
+          }}
           onSuccess={() => {
             setRescheduleModalBooking(null)
+            if (activeInquiryId) {
+              handleUpdateInquiry(activeInquiryId, 'RESOLVED')
+              setActiveInquiryId(null)
+            }
             loadBookings()
           }}
           addToast={addToast}

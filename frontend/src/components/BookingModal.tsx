@@ -143,7 +143,9 @@ const BookingModal: React.FC<BookingModalProps> = ({
         ) : (
           // ── Booking Form View ──────────────────────────────────────────
           <>
-            <h2 style={{ marginBottom: 4 }}>Book Your Seat</h2>
+            <h2 style={{ marginBottom: 4 }}>
+              {seat.is_available ? 'Book Your Seat' : 'Join the Waitlist'}
+            </h2>
             <p style={{ color: 'var(--color-text-muted)', marginBottom: !user ? 12 : 24, fontSize: '0.9rem' }}>
               Coach {seat.coach.name}, Seat {seat.seat_number}
             </p>
@@ -177,6 +179,24 @@ const BookingModal: React.FC<BookingModalProps> = ({
                   >
                     create an account
                   </button>.
+                </div>
+              </div>
+            )}
+
+            {!seat.is_available && user && (
+              <div style={{
+                background: 'rgba(242,153,74,0.1)',
+                border: '1px solid rgba(242,153,74,0.3)',
+                borderRadius: 10,
+                padding: '12px 16px',
+                marginBottom: 20,
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 10,
+              }}>
+                <AlertTriangle size={16} style={{ color: '#F2994A', flexShrink: 0, marginTop: 2 }} />
+                <div style={{ fontSize: '0.85rem', color: '#F2994A', lineHeight: 1.5 }}>
+                  <strong>This seat is currently booked.</strong> Fill out your details below to join the waitlist. We'll automatically book it for you if it becomes available.
                 </div>
               </div>
             )}
@@ -256,24 +276,26 @@ const BookingModal: React.FC<BookingModalProps> = ({
             </div>
 
             <div style={{ display: 'flex', gap: 12 }}>
-              <button
-                id="btn-confirm-booking"
-                className="btn btn-primary"
-                style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
-                onClick={handleBook}
-                disabled={loading}
-              >
-                {loading ? <><div className="spinner" style={{ width: 18, height: 18 }} /> Booking…</> : <><Ticket size={18} /> Confirm Booking</>}
-              </button>
+              {seat.is_available && (
+                <button
+                  id="btn-confirm-booking"
+                  className="btn btn-primary"
+                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                  onClick={handleBook}
+                  disabled={loading}
+                >
+                  {loading ? <><div className="spinner" style={{ width: 18, height: 18 }} /> Booking…</> : <><Ticket size={18} /> Confirm Booking</>}
+                </button>
+              )}
               <button
                 id="btn-join-waitlist"
-                className="btn btn-secondary btn-sm"
+                className={seat.is_available ? "btn btn-secondary btn-sm" : "btn btn-primary"}
                 onClick={handleWaitlist}
                 disabled={loading}
                 title={user ? 'Join the waitlist if this seat gets booked before you' : 'Login required to join waitlist'}
-                style={!user ? { opacity: 0.6 } : undefined}
+                style={Object.assign({ flex: seat.is_available ? undefined : 1 }, !user ? { opacity: 0.6 } : undefined)}
               >
-                {!user ? <><LogIn size={14} style={{ marginRight: 4 }} /> Login to Waitlist</> : 'Waitlist'}
+                {!user ? <><LogIn size={14} style={{ marginRight: 4 }} /> Login to Waitlist</> : (seat.is_available ? 'Waitlist' : 'Join Waitlist')}
               </button>
             </div>
           </>
