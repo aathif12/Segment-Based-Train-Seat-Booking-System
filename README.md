@@ -2,6 +2,8 @@
 
 > Booking system for Sri Lanka's Colombo Fort–Badulla scenic railway line that lets a single reserved seat be independently booked by multiple passengers on non-overlapping legs of the same journey.
 
+🎥 **[Watch the Demo Video](https://youtu.be/pW0vPOtoGjo)**
+
 ---
 
 ## Running the Project
