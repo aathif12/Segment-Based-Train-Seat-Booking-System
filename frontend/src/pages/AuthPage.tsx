@@ -4,6 +4,7 @@ import { loginUser, registerUser } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import type { ToastType } from '../components/Toast'
 import { User, LogIn, UserPlus } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 interface AuthPageProps {
   addToast: (msg: string, type?: ToastType) => void
@@ -11,6 +12,7 @@ interface AuthPageProps {
 }
 
 const AuthPage: React.FC<AuthPageProps> = ({ addToast, isRegister = false }) => {
+  const { t } = useTranslation()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -48,12 +50,12 @@ const AuthPage: React.FC<AuthPageProps> = ({ addToast, isRegister = false }) => 
           </div>
         </div>
         <h2 style={{ textAlign: 'center', marginBottom: 30 }}>
-          {isRegister ? 'Create an Account' : 'Welcome Back'}
+          {isRegister ? t('auth.registerTitle') : t('auth.loginTitle')}
         </h2>
         <form onSubmit={handleSubmit}>
           {isRegister && (
             <div className="form-group">
-              <label className="form-label">Full Name</label>
+              <label className="form-label">{t('auth.name')}</label>
               <input 
                 type="text" 
                 className="form-input" 
@@ -64,7 +66,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ addToast, isRegister = false }) => 
             </div>
           )}
           <div className="form-group">
-            <label className="form-label">Email Address</label>
+            <label className="form-label">{t('auth.email')}</label>
             <input 
               type="email" 
               className="form-input" 
@@ -74,7 +76,7 @@ const AuthPage: React.FC<AuthPageProps> = ({ addToast, isRegister = false }) => 
             />
           </div>
           <div className="form-group" style={{ marginBottom: 30 }}>
-            <label className="form-label">Password</label>
+            <label className="form-label">{t('auth.password')}</label>
             <input 
               type="password" 
               className="form-input" 
@@ -85,16 +87,16 @@ const AuthPage: React.FC<AuthPageProps> = ({ addToast, isRegister = false }) => 
             />
           </div>
           <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
-            {loading ? 'Please wait...' : (
-              isRegister ? <><UserPlus size={18} /> Sign Up</> : <><LogIn size={18} /> Sign In</>
+            {loading ? '...' : (
+              isRegister ? <><UserPlus size={18} /> {t('auth.registerBtn')}</> : <><LogIn size={18} /> {t('auth.loginBtn')}</>
             )}
           </button>
         </form>
         <div style={{ marginTop: 24, textAlign: 'center', fontSize: '0.9rem' }}>
           {isRegister ? (
-            <>Already have an account? <Link to="/login" style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}>Sign In</Link></>
+            <>{t('auth.hasAccount')} <Link to="/login" style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}>{t('auth.loginBtn')}</Link></>
           ) : (
-            <>Don't have an account? <Link to="/register" style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}>Sign Up</Link></>
+            <>{t('auth.noAccount')} <Link to="/register" style={{ color: 'var(--color-primary)', fontWeight: 600, textDecoration: 'none' }}>{t('auth.registerBtn')}</Link></>
           )}
         </div>
       </div>

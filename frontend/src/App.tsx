@@ -8,10 +8,12 @@ import InquiriesPage from './pages/InquiriesPage'
 import { useToast, ToastContainer } from './components/Toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { LogOut, User } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 
 const NavBar: React.FC = () => {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const { t, i18n } = useTranslation()
 
   const handleLogout = () => {
     logout()
@@ -30,19 +32,19 @@ const NavBar: React.FC = () => {
         </div>
         <div className="navbar-links">
           <NavLink to="/" end className={({ isActive }) => `navbar-link${isActive ? ' active' : ''}`}>
-            Book Tickets
+            {t('nav.bookTickets')}
           </NavLink>
           <NavLink to="/inquiries" className={({ isActive }) => `navbar-link${isActive ? ' active' : ''}`}>
-            Inquiries
+            {t('nav.inquiries')}
           </NavLink>
           {user ? (
             <>
               <NavLink to="/my-bookings" className={({ isActive }) => `navbar-link${isActive ? ' active' : ''}`}>
-                My Bookings
+                {t('nav.myBookings')}
               </NavLink>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginLeft: 16, paddingLeft: 16, borderLeft: '1px solid rgba(0,0,0,0.1)' }}>
                 <span style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)' }}><User size={14} style={{ display: 'inline', marginRight: 4 }} />{user.name}</span>
-                <button className="btn btn-outline btn-sm" onClick={handleLogout} style={{ padding: '4px 8px' }} title="Logout">
+                <button className="btn btn-outline btn-sm" onClick={handleLogout} style={{ padding: '4px 8px' }} title={t('nav.logout')}>
                   <LogOut size={16} />
                 </button>
               </div>
@@ -50,16 +52,27 @@ const NavBar: React.FC = () => {
           ) : (
             <>
               <NavLink to="/login" className={({ isActive }) => `navbar-link${isActive ? ' active' : ''}`}>
-                Login
+                {t('nav.login')}
               </NavLink>
               <NavLink to="/register" className={({ isActive }) => `navbar-link${isActive ? ' active' : ''}`}>
-                Register
+                {t('nav.register')}
               </NavLink>
             </>
           )}
           <NavLink to="/admin" className={({ isActive }) => `navbar-link${isActive ? ' active' : ''}`} style={{ marginLeft: user ? 0 : 16 }}>
-            Admin
+            {t('nav.admin')}
           </NavLink>
+
+          <select 
+            className="form-select" 
+            style={{ width: 'auto', padding: '4px 28px 4px 8px', marginLeft: 16, minHeight: 32, fontSize: '0.85rem' }}
+            value={i18n.language} 
+            onChange={(e) => i18n.changeLanguage(e.target.value)}
+          >
+            <option value="en">English</option>
+            <option value="ta">தமிழ்</option>
+            <option value="si">සිංහල</option>
+          </select>
         </div>
       </div>
     </nav>

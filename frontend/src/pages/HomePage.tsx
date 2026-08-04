@@ -9,6 +9,7 @@ import { parseNaturalLanguageQuery } from '../utils/nlp'
 import SeatMap from '../components/SeatMap'
 import BookingModal from '../components/BookingModal'
 import TrainSchedules from '../components/TrainSchedules'
+import { useTranslation } from 'react-i18next'
 import type { ToastType } from '../components/Toast'
 
 interface HomePageProps {
@@ -16,6 +17,8 @@ interface HomePageProps {
 }
 
 const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
+  const { t } = useTranslation()
+
   // ── Station / Search state ──────────────────────────────────────
   const [stations, setStations]             = useState<Station[]>([])
   const [fromId, setFromId]                 = useState<string>('')
@@ -164,23 +167,20 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
         <div className="container">
           <div className="hero-eyebrow fade-in">
             <Train size={16} />
-            Colombo Fort - Badulla Scenic Line
+            {t('home.routeInfo')}
           </div>
 
-          <h1 className="hero-title fade-up">
-            Book Your Seat,<br />Pay for Your Journey
-          </h1>
+          <h1 className="hero-title fade-up" dangerouslySetInnerHTML={{ __html: t('home.heroTitle') }} />
 
           <p className="hero-subtitle fade-up" style={{ animationDelay: '0.1s' }}>
-            Segment-based reserved seating - one physical seat, multiple passengers,
-            each paying only for the distance they actually travel.
+            {t('home.heroSubtitle')}
           </p>
 
           {/* ── Search Panel ─────────────────────────────────────── */}
           <div className="glass-card search-panel fade-up" style={{ animationDelay: '0.2s' }}>
             <div className="search-panel__heading">
               <Search size={16} style={{ color: 'var(--color-primary)' }} />
-              <span>Find Trains</span>
+              <span>{t('home.findTrains')}</span>
             </div>
 
             {loadingStations ? (
@@ -193,7 +193,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                 <div className="form-group fade-up" style={{ animationDelay: '0.3s', marginBottom: 24 }}>
                   <label className="form-label" htmlFor="nlp-search">
                     <Sparkles size={13} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: 4, color: 'var(--color-primary)' }} />
-                    Smart Search
+                    {t('home.smartSearch')}
                   </label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input
@@ -201,7 +201,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                       id="nlp-search"
                       className="form-input"
                       style={{ flex: 1 }}
-                      placeholder="e.g. 'I need a train from Colombo to Badulla tomorrow'"
+                      placeholder={t('home.smartSearchPlaceholder')}
                       value={nlpQuery}
                       onChange={e => setNlpQuery(e.target.value)}
                       onKeyDown={e => {
@@ -215,7 +215,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                       disabled={isParsing || !nlpQuery.trim()}
                       style={{ whiteSpace: 'nowrap' }}
                     >
-                      {isParsing ? <div className="spinner" style={{ width: 18, height: 18 }} /> : 'Magic Search'}
+                      {isParsing ? <div className="spinner" style={{ width: 18, height: 18 }} /> : t('home.magicSearchBtn')}
                     </button>
                   </div>
                 </div>
@@ -224,7 +224,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                   display: 'flex', alignItems: 'center', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 14, marginBottom: 24 
                 }}>
                   <div style={{ flex: 1, height: 1, backgroundColor: 'var(--color-border)' }} />
-                  <span style={{ padding: '0 12px', fontSize: 12, fontWeight: 500 }}>OR MANUAL SEARCH</span>
+                  <span style={{ padding: '0 12px', fontSize: 12, fontWeight: 500 }}>{t('home.orManualSearch')}</span>
                   <div style={{ flex: 1, height: 1, backgroundColor: 'var(--color-border)' }} />
                 </div>
 
@@ -233,7 +233,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                   <div className="form-group">
                     <label className="form-label" htmlFor="from-station">
                       <MapPin size={13} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: 4 }} />
-                      From
+                      {t('home.from')}
                     </label>
                     <select
                       id="from-station"
@@ -251,7 +251,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                   <div className="form-group">
                     <label className="form-label" htmlFor="travel-date">
                       <Calendar size={13} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: 4 }} />
-                      Date
+                      {t('home.date')}
                     </label>
                     <input
                       type="date"
@@ -276,7 +276,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                   <div className="form-group">
                     <label className="form-label" htmlFor="to-station">
                       <MapPin size={13} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: 4 }} />
-                      To
+                      {t('home.to')}
                     </label>
                     <select
                       id="to-station"
@@ -298,8 +298,8 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                     disabled={loadingSchedules || !fromId || !toId}
                   >
                     {loadingSchedules
-                      ? <><div className="spinner" style={{ width: 18, height: 18 }} /> Searching…</>
-                      : <><Search size={18} style={{ marginRight: 8 }} /> Search Trains</>
+                      ? <><div className="spinner" style={{ width: 18, height: 18 }} /> {t('home.searching')}</>
+                      : <><Search size={18} style={{ marginRight: 8 }} /> {t('home.searchTrains')}</>
                     }
                   </button>
                 </div>
@@ -355,10 +355,10 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                 <Train size={14} />
                 {fromStation?.name} → {toStation?.name} · {travelDate}
               </div>
-              <h2 className="schedules-title">Available Trains</h2>
+              <h2 className="schedules-title">{t('home.availableTrains')}</h2>
               {!loadingSchedules && schedules.length > 0 && (
                 <p className="schedules-subtitle">
-                  {schedules.length} train{schedules.length !== 1 ? 's' : ''} found - select one to view seat availability
+                  {t('home.trainsFound', { count: schedules.length })}
                 </p>
               )}
             </div>
