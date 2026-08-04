@@ -4,19 +4,7 @@
 
 ---
 
-## Table of Contents
-
-- [Quick Start](#quick-start)
-- [Architecture Overview](#architecture-overview)
-- [Core Design Decisions](#core-design-decisions)
-- [API Reference](#api-reference)
-- [Extra Credit Features](#extra-credit-features)
-- [Challenges](#challenges)
-- [Development Setup (Without Docker)](#development-setup-without-docker)
-
----
-
-## Quick Start
+## Running the Project
 
 **Prerequisites:** Docker & Docker Compose installed.
 
@@ -40,203 +28,77 @@ docker-compose up --build
 On the first boot the `seeder` service runs automatically and populates:
 - **15 stations** from Colombo Fort to Badulla (real stops with approximate distances)
 - **8 coaches** (3 reserved A/B/C with 40 seats each; 5 unreserved D–H)
-- **120 bookable reserved seats** in total
+- **120 bookable reserved seats** in total.
+
+*(Note: The number of coaches, seats, and stations are fully configurable via the seed script, enabling easy future expansions as requested by the department).*
 
 ---
 
-## Architecture Overview
-
-```
-┌─────────────────────────────────────────────────┐
-│  React + Vite Frontend  (nginx :3000)            │
-│  • Seat map visualization                        │
-│  • Booking flow with conflict handling           │
-│  • Admin dashboard                               │
-└────────────────────┬────────────────────────────┘
-                     │ HTTP /api/*
-┌────────────────────▼────────────────────────────┐
-│  Go + Gin Backend  (:8080)                       │
-│  • Gin HTTP router                               │
-│  • GORM ORM                                      │
-│  • Booking service with SELECT FOR UPDATE        │
-│  • Fare calculation service                      │
-└────────────────────┬────────────────────────────┘
-                     │
-┌────────────────────▼────────────────────────────┐
-│  PostgreSQL 15                                   │
-│  • Row-level locking (concurrency control)       │
-│  • stations, coaches, seats, bookings, waitlist  │
-└─────────────────────────────────────────────────┘
-```
-
-**Tech stack:**
-| Layer | Technology | Reason |
-|-------|-----------|--------|
-| Backend | Go 1.22 + Gin | Fast, strongly typed, great concurrency model |
-| ORM | GORM | Mature Go ORM; native transaction + locking API |
-| Database | PostgreSQL 15 | Strong transactional guarantees, row-level locking |
-| Frontend | React 18 + Vite | Best DX for SPA, fast HMR in development |
-| Serving | nginx | Efficient static file serving + API proxy |
-| Infra | Docker Compose | Single-command reproducible setup |
-
----
-
-## Core Design Decisions
+## Core Design Decisions & Alternatives Considered
 
 ### 1. Segment Overlap Detection
+**The Problem:** Given an existing set of bookings on a seat, how do we determine if the seat is available for a new `[start, end)` request?
+**Decision:** Store station positions as an integer `order_in_route` (0 to 14) and use mathematical overlap checking. Two intervals `[S₁, E₁)` and `[S₂, E₂)` overlap if and only if `MAX(S₁, S₂) < MIN(E₁, E₂)`.
+**Alternatives & Reasoning:** 
+- *Why not use station IDs?* Station IDs have no inherent ordering semantics. Using an integer order makes overlap checks a simple numeric range comparison, avoiding joins or complex subqueries. 
+- *Why strict inequality?* Adjacent bookings (e.g., Fort→Kandy then Kandy→Badulla) evaluate `MAX < MIN` as false, correctly permitting segment resale.
 
-The central question is: *given an existing set of bookings on a seat, is the seat available for a new `[start, end)` request?*
+### 2. Concurrency Control: Handling Simultaneous Bookings
+**The Problem:** Two users simultaneously request the same seat for the same segment. Both read "available", both try to insert — creating a duplicate booking (phantom read).
+**Alternatives Considered:**
+- *Application-level mutex (`sync.Mutex`):* Rejected because it only works within a single process, breaking if we deploy multiple backend replicas.
+- *Redis distributed lock:* Rejected as it adds a new infrastructure dependency for a problem the database already solves natively.
+- *SERIALIZABLE isolation level:* Rejected because it causes excessive transaction aborts and retry storms under load.
+**Decision (`SELECT ... FOR UPDATE`):**
+Inside a PostgreSQL transaction, we acquire an exclusive row-level lock on the `seats` row using `SELECT * FROM seats WHERE id = $1 FOR UPDATE`. Any concurrent transaction attempting the same seat blocks until the first completes. We re-check availability *after* locking to ensure exactly one winner emerges. This guarantees correctness without extra infrastructure.
 
-Two intervals `[S₁, E₁)` and `[S₂, E₂)` overlap if and only if:
-```
-MAX(S₁, S₂) < MIN(E₁, E₂)
-```
-
-Equivalently in SQL:
-```sql
-SELECT 1 FROM bookings
-WHERE seat_id = $1
-  AND status = 'CONFIRMED'
-  AND start_station_order < $end_new   -- existing starts before new end
-  AND end_station_order > $start_new   -- existing ends after new start
-LIMIT 1;
-```
-
-**Why not use `<>` on station IDs?** Station IDs have no ordering semantics. Using the integer `order_in_route` column makes overlap checks a simple range comparison — no joins, no subqueries.
-
-**Adjacent bookings** (e.g. Fort→Kandy then Kandy→Badulla) satisfy `MAX < MIN` as false (they are equal), so they are correctly allowed and is the key enabler of segment resale.
-
-### 2. Concurrency Control: `SELECT FOR UPDATE`
-
-**The problem:** Two users simultaneously request the same seat for the same segment. Both read "available", both try to insert — creating a duplicate booking (phantom read).
-
-**Rejected alternatives:**
-- **Application-level mutex (sync.Mutex):** Only works within a single process; breaks with multiple backend replicas.
-- **Redis distributed lock:** Adds an infrastructure dependency for a problem the database already solves correctly.
-- **SERIALIZABLE isolation:** Correct, but causes excessive transaction aborts and retry storms under load.
-
-**Chosen approach: `SELECT ... FOR UPDATE`**
-
-```go
-tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&seat, seatID)
-```
-
-Inside a transaction, we acquire an exclusive row-level lock on the `seats` row. Any concurrent transaction attempting the same seat will block at this line until we commit or rollback. After acquiring the lock, we re-check for overlapping bookings — the check is now serialised, so exactly one winner emerges.
-
-This is correct, efficient, and requires no extra infrastructure.
-
-### 3. Database Schema — `order_in_route` as the Segment Key
-
-Stations carry an integer `order_in_route` (0 = Fort, 14 = Badulla). Bookings store `start_station_order` and `end_station_order` — not foreign keys to stations — because:
-- Overlap detection needs numeric comparison, not equality.
-- It avoids joining to the stations table in the hot path (booking creation).
-- `start_station_id` / `end_station_id` FKs are still stored for display purposes (station names).
-
-### 4. Configurability
-
-No coach or seat counts are hardcoded. They live in the seed script and are configurable there. The schema supports any number of coaches, seat counts per coach, and stations — you add to the seed and re-run; no code changes are needed.
-
-### 5. Fare Logic
-
-```
-fare = max(MinimumFare, |distance_to - distance_from| × BaseRatePerKm)
-```
-
-- `distance_km` per station is seeded from real approximate cumulative distances from Colombo Fort.
-- `BaseRatePerKm` (LKR 3.50) is a named constant in `services/fare.go` — one change updates all fares.
-- The minimum fare (LKR 50) ensures very short segments are still economically viable.
-- This directly addresses the problem statement: a Colombo Fort → Kandy passenger pays ~LKR 424 instead of the full ~LKR 1,022 to Badulla.
-
----
-
-## API Reference
-
-| Method | Path | Description |
-|--------|------|-------------|
-| `GET` | `/health` | Liveness probe |
-| `GET` | `/api/stations` | All stations in route order |
-| `GET` | `/api/seats/available?from_order=0&to_order=5` | Available reserved seats for segment |
-| `POST` | `/api/bookings` | Create a booking (transactional, `FOR UPDATE`) |
-| `GET` | `/api/bookings/:id` | Booking detail |
-| `DELETE` | `/api/bookings/:id` | Cancel a confirmed booking |
-| `POST` | `/api/bookings/waitlist` | Join waitlist for a booked segment |
-| `GET` | `/api/admin/occupancy` | Coach occupancy stats |
-| `GET` | `/api/admin/revenue` | Revenue by station pair |
-
-**Booking request body:**
-```json
-{
-  "seat_id": 1,
-  "passenger_name": "Aathavan Kandeepan",
-  "passenger_email": "aathavan@example.com",
-  "start_station_id": 1,
-  "end_station_id": 6
-}
-```
-
-**Conflict response (409):**
-```json
-{
-  "error": "This seat is already booked for an overlapping segment.",
-  "code": "SEGMENT_CONFLICT"
-}
-```
+### 3. Fare Logic
+**Decision:** `fare = max(MinimumFare, |distance_to - distance_from| × BaseRatePerKm)`
+This directly addresses the business problem: a passenger booking Colombo Fort → Kandy pays exactly for the distance traveled, not the full Badulla fare. The system dynamically allows the remaining Kandy → Badulla segment to be resold.
 
 ---
 
 ## Extra Credit Features
 
-### Seat Map Visualization
-**Problem:** A plain list of seat numbers is hard to scan.  
-**Solution:** An interactive grid view grouped by coach, with colour-coded availability (green = available, red = booked, gold = selected). Switching coach tabs lets passengers compare options quickly.
+### 1. Natural Language "Smart Search" (In branch `feature/nlp-search`)
+**Problem:** Users shouldn't have to navigate dropdown menus if they just want to type their request.
+**Solution:** Implemented a "Magic Search" input that parses queries like "I need a train from Colombo to Badulla tomorrow". It uses a heuristic NLP parser (with the architecture set up to easily plug in an LLM API like Wit.ai or HuggingFace) to auto-fill the origin, destination, and date fields.
 
-### Waitlist
+### 2. Multi-Language Support / i18n (In branch `feature/i18n`)
+**Problem:** Sri Lanka has multiple official languages; a booking system should be accessible to everyone.
+**Solution:** Integrated `react-i18next` to dynamically switch the UI between English, Tamil (தமிழ்), and Sinhala (සිංහල) without page reloads, making the platform genuinely usable in a real-world local setting.
+
+### 3. Seat Map Visualization
+**Problem:** A plain list of available seat numbers is hard to scan.  
+**Solution:** Built an interactive grid view grouped by coach, with colour-coded availability (green = available, red = booked). It visually demonstrates the segment-booking concept and makes seat selection intuitive.
+
+### 4. Waitlisting
 **Problem:** When a segment is fully booked, passengers have no recourse.  
-**Solution:** A `waitlist_entries` table queues passengers per seat per segment. When a booking is cancelled, a background Go goroutine checks for the earliest matching waitlist entry within the freed segment range and promotes it to a confirmed booking — all inside a database transaction to prevent races.
+**Solution:** A `waitlist_entries` table queues passengers per seat per segment. A background Go routine processes cancellations and automatically promotes the earliest matching waitlist entry to a confirmed booking, all within a transaction.
 
-### Admin Dashboard
-**Problem:** The department has no visibility into occupancy or revenue patterns.  
-**Solution:** `/api/admin/occupancy` returns per-coach booking counts with occupancy percentages; `/api/admin/revenue` returns total revenue grouped by station pair, enabling the department to see which legs are most profitable.
+### 5. Admin Dashboard
+**Problem:** The department lacks visibility into occupancy or revenue patterns.  
+**Solution:** Added `/api/admin/occupancy` and `/api/admin/revenue` endpoints to report per-coach booking percentages and revenue by station pair, demonstrating the financial impact of segment-based resale.
 
-### Booking Conflict UX
-**Problem:** In a concurrent system, a seat can be taken between the user seeing "available" and completing the form.  
-**Solution:** `SEGMENT_CONFLICT` errors from the API surface a clear toast message, automatically refresh the seat map, and close the modal — giving the user immediate visual feedback and a fresh view to choose an alternative seat.
+### 6. Booking Conflict UX
+**Problem:** A seat can be taken while a user is filling out the booking form.
+**Solution:** `SEGMENT_CONFLICT` API errors surface a clear toast message and automatically refresh the seat map, giving the user immediate visual feedback to choose another seat.
 
 ---
 
 ## Challenges
 
-1. **Correctly handling adjacent segments:** The overlap formula `MAX(S₁,S₂) < MIN(E₁,E₂)` uses strict inequality, so `[0,5)` and `[5,10)` correctly do *not* overlap. Getting this right was critical — an off-by-one here would either double-book or leave gaps.
-
-2. **Seeder idempotency:** The seeder uses `ON CONFLICT DO UPDATE` (upsert) so re-running it doesn't create duplicate stations or seats. This makes the development loop clean.
-
-3. **Go module path in Docker:** The multi-stage Docker build requires `go mod download` before copying source to maximise layer caching. Getting the module path (`github.com/lfs-railway/backend`) consistent across all files was a common early mistake to watch for.
+1. **Correctly handling adjacent segments:** The overlap formula `MAX(S₁,S₂) < MIN(E₁,E₂)` relies on strict inequality. Getting this right was critical — an off-by-one or using `<=` would either accidentally allow double-booking or incorrectly block adjacent (non-overlapping) bookings.
+2. **Seeder idempotency in Docker:** The seeder runs automatically on boot. Using `ON CONFLICT DO UPDATE` (upsert) ensured re-running the docker containers doesn't create duplicate stations or seats, keeping the development loop robust.
+3. **Go module pathing:** Setting up the multi-stage Docker build to maximize layer caching meant ensuring `go mod download` paths were completely consistent across all files.
 
 ---
 
-## Development Setup (Without Docker)
+## API Reference (Abridged)
 
-**Prerequisites:** Go 1.22+, Node 22+, PostgreSQL 15+
-
-```bash
-# --- Backend ---
-cd backend
-cp ../.env.example .env          # set DATABASE_URL
-go mod tidy
-go run ./cmd/server              # starts on :8080
-
-# In a separate terminal — seed data
-go run ./seed
-
-# --- Frontend ---
-cd frontend
-npm install
-npm run dev                      # starts on :5173 (proxies /api → :8080)
-```
-
-**Run tests:**
-```bash
-cd backend
-# Requires a running database with seeded data
-go test ./internal/services/... -run TestConcurrentBooking -v
-```
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/stations` | All stations in route order |
+| `GET` | `/api/seats/available` | Available seats for segment |
+| `POST` | `/api/bookings` | Create a booking (`FOR UPDATE`) |
+| `POST` | `/api/bookings/waitlist` | Join waitlist for a booked segment |
