@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import {
   Train, Search, MapPin, Ruler, Coins, CheckCircle2,
-  ArrowRight, Calendar, ChevronDown,
+  ArrowRight, Calendar, ChevronDown, Sparkles
 } from 'lucide-react'
 import { fetchStations, fetchAvailableSeats, fetchTrainSchedules } from '../api/client'
 import type { Station, AvailableSeat, TrainSchedule } from '../api/client'
+import { parseNaturalLanguageQuery } from '../utils/nlp'
 import SeatMap from '../components/SeatMap'
 import BookingModal from '../components/BookingModal'
 import TrainSchedules from '../components/TrainSchedules'
@@ -22,6 +23,10 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
   const [travelDate, setTravelDate]         = useState<string>(new Date().toISOString().split('T')[0])
   const [loadingStations, setLoadingStations] = useState(true)
   const [searched, setSearched]             = useState(false)
+  
+  // ── NLP Search state ──────────────────────────────────────────
+  const [nlpQuery, setNlpQuery]             = useState('')
+  const [isParsing, setIsParsing]           = useState(false)
 
   // ── Train Schedule state ────────────────────────────────────────
   const [schedules, setSchedules]           = useState<TrainSchedule[]>([])
@@ -50,6 +55,34 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
 
   const fromStation = stations.find(s => s.id === Number(fromId))
   const toStation   = stations.find(s => s.id === Number(toId))
+
+  const handleNlpSearch = async () => {
+    if (!nlpQuery.trim() || stations.length === 0) return;
+    
+    setIsParsing(true);
+    try {
+      const parsed = await parseNaturalLanguageQuery(nlpQuery, stations);
+      
+      let updated = false;
+      if (parsed.fromId) { setFromId(parsed.fromId); updated = true; }
+      if (parsed.toId) { setToId(parsed.toId); updated = true; }
+      if (parsed.date) { setTravelDate(parsed.date); updated = true; }
+
+      if (updated) {
+        addToast('Search fields auto-filled!', 'success');
+        // Slight delay to allow React to update the state in the UI before searching
+        setTimeout(() => {
+          document.getElementById('btn-search-trains')?.click();
+        }, 300);
+      } else {
+        addToast("Couldn't extract locations/dates. Please refine your query.", 'info');
+      }
+    } catch {
+      addToast('Error understanding query', 'error');
+    } finally {
+      setIsParsing(false);
+    }
+  }
 
   // ── Step 1: Search → fetch schedules ───────────────────────────
   const handleSearch = async () => {
@@ -156,6 +189,45 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
               </div>
             ) : (
               <>
+                {/* ── NLP Magic Search ─────────────────────────────────── */}
+                <div className="form-group fade-up" style={{ animationDelay: '0.3s', marginBottom: 24 }}>
+                  <label className="form-label" htmlFor="nlp-search">
+                    <Sparkles size={13} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: 4, color: 'var(--color-primary)' }} />
+                    Smart Search
+                  </label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      type="text"
+                      id="nlp-search"
+                      className="form-input"
+                      style={{ flex: 1 }}
+                      placeholder="e.g. 'I need a train from Colombo to Badulla tomorrow'"
+                      value={nlpQuery}
+                      onChange={e => setNlpQuery(e.target.value)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleNlpSearch()
+                      }}
+                      disabled={isParsing}
+                    />
+                    <button
+                      className="btn btn-primary"
+                      onClick={handleNlpSearch}
+                      disabled={isParsing || !nlpQuery.trim()}
+                      style={{ whiteSpace: 'nowrap' }}
+                    >
+                      {isParsing ? <div className="spinner" style={{ width: 18, height: 18 }} /> : 'Magic Search'}
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="search-divider" style={{ 
+                  display: 'flex', alignItems: 'center', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: 14, marginBottom: 24 
+                }}>
+                  <div style={{ flex: 1, height: 1, backgroundColor: 'var(--color-border)' }} />
+                  <span style={{ padding: '0 12px', fontSize: 12, fontWeight: 500 }}>OR MANUAL SEARCH</span>
+                  <div style={{ flex: 1, height: 1, backgroundColor: 'var(--color-border)' }} />
+                </div>
+
                 <div className="search-grid">
                   {/* From */}
                   <div className="form-group">
