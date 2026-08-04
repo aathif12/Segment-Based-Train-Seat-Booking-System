@@ -137,7 +137,7 @@ const AdminRescheduleModal: React.FC<AdminRescheduleModalProps> = ({
           ) : (
             <SeatMap
               seats={seats}
-              selectedSeatId={selectedSeatId}
+              selectedSeatIds={selectedSeatId ? [selectedSeatId] : []}
               onSelect={seat => setSelectedSeatId(seat.id)}
             />
           )}

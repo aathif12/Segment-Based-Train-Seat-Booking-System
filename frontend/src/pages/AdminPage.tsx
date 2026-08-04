@@ -781,7 +781,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ addToast }) => {
             
             <SeatMap
               seats={mapSeats}
-              selectedSeatId={null}
+              selectedSeatIds={[]}
               onSelect={() => {}}
             />
           </div>

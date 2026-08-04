@@ -41,7 +41,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
   const [seats, setSeats]                   = useState<AvailableSeat[]>([])
   const [loadingSeats, setLoadingSeats]     = useState(false)
   const [selectedSeats, setSelectedSeats]   = useState<AvailableSeat[]>([])
-
+  const [isModalOpen, setIsModalOpen]       = useState(false)
   // Load stations once
   useEffect(() => {
     fetchStations()
@@ -99,7 +99,6 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
     setSelectedTrain(null)
     setSeats([])
     setSelectedSeats([])
-    setSelectedSeat(null)
     setScheduleError(null)
     setLoadingSchedules(true)
 
@@ -451,7 +450,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                 </div>
                 <button
                   className="btn btn-primary"
-                  onClick={() => document.getElementById('booking-modal')?.classList.add('open')}
+                  onClick={() => setIsModalOpen(true)}
                 >
                   <CheckCircle2 size={18} /> Continue to Booking
                 </button>
@@ -462,14 +461,14 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
       )}
 
       {/* ── Booking Modal ─────────────────────────────────────────── */}
-      {selectedSeats.length > 0 && fromStation && toStation && selectedTrain && (
+      {isModalOpen && selectedSeats.length > 0 && fromStation && toStation && selectedTrain && (
         <BookingModal
           selectedSeats={selectedSeats}
           fromStation={fromStation}
           toStation={toStation}
           travelDate={travelDate}
           trainScheduleId={selectedTrain.id}
-          onClose={() => document.getElementById('booking-modal')?.classList.remove('open')}
+          onClose={() => setIsModalOpen(false)}
           onSuccess={handleBookingSuccess}
           addToast={addToast}
         />

@@ -118,7 +118,7 @@ const AdminWaitlistAssignModal: React.FC<AdminWaitlistAssignModalProps> = ({
           ) : (
             <SeatMap
               seats={seats}
-              selectedSeatId={selectedSeatId}
+              selectedSeatIds={selectedSeatId ? [selectedSeatId] : []}
               onSelect={seat => setSelectedSeatId(seat.id)}
             />
           )}

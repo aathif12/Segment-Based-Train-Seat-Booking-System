@@ -24,14 +24,11 @@ const NavBar: React.FC = () => {
   return (
     <nav className="navbar">
       <div className="container navbar-inner">
-        <div className="navbar-brand">
+        <div className="navbar-brand" style={{ whiteSpace: 'nowrap', flexShrink: 0, cursor: 'pointer' }} onClick={() => navigate('/')}>
           <span className="brand-dot" />
           Ceylon Railways
-          <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)', fontWeight: 400, marginLeft: 4 }}>
-            Colombo Fort – Badulla
-          </span>
         </div>
-        <div className="navbar-links">
+        <div className="navbar-links" style={{ overflowX: 'auto', flexWrap: 'nowrap' }}>
           <NavLink to="/" end className={({ isActive }) => `navbar-link${isActive ? ' active' : ''}`}>
             {t('nav.bookTickets')}
           </NavLink>
@@ -46,8 +43,11 @@ const NavBar: React.FC = () => {
               <NavLink to="/profile" className={({ isActive }) => `navbar-link${isActive ? ' active' : ''}`}>
                 My Profile
               </NavLink>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginLeft: 16, paddingLeft: 16, borderLeft: '1px solid rgba(0,0,0,0.1)' }}>
-                <span style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)' }}><User size={14} style={{ display: 'inline', marginRight: 4 }} />{user.name}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginLeft: 16, paddingLeft: 16, borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
+                <span style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', whiteSpace: 'nowrap', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <User size={14} style={{ display: 'inline', marginRight: 4, verticalAlign: 'middle' }} />
+                  {user.name}
+                </span>
                 <button className="btn btn-outline btn-sm" onClick={handleLogout} style={{ padding: '4px 8px' }} title={t('nav.logout')}>
                   <LogOut size={16} />
                 </button>
