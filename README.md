@@ -1,4 +1,4 @@
-# Ceylon Railways — Segment-Based Seat Booking System
+# Ceylon Railways  Segment-Based Seat Booking System
 
 > Booking system for Sri Lanka's Colombo Fort–Badulla scenic railway line that lets a single reserved seat be independently booked by multiple passengers on non-overlapping legs of the same journey.
 
@@ -44,7 +44,7 @@ On the first boot the `seeder` service runs automatically and populates:
 - *Why strict inequality?* Adjacent bookings (e.g., Fort→Kandy then Kandy→Badulla) evaluate `MAX < MIN` as false, correctly permitting segment resale.
 
 ### 2. Concurrency Control: Handling Simultaneous Bookings
-**The Problem:** Two users simultaneously request the same seat for the same segment. Both read "available", both try to insert — creating a duplicate booking (phantom read).
+**The Problem:** Two users simultaneously request the same seat for the same segment. Both read "available", both try to insert  creating a duplicate booking (phantom read).
 **Alternatives Considered:**
 - *Application-level mutex (`sync.Mutex`):* Rejected because it only works within a single process, breaking if we deploy multiple backend replicas.
 - *Redis distributed lock:* Rejected as it adds a new infrastructure dependency for a problem the database already solves natively.
@@ -88,7 +88,7 @@ This directly addresses the business problem: a passenger booking Colombo Fort �
 
 ## Challenges
 
-1. **Correctly handling adjacent segments:** The overlap formula `MAX(S₁,S₂) < MIN(E₁,E₂)` relies on strict inequality. Getting this right was critical — an off-by-one or using `<=` would either accidentally allow double-booking or incorrectly block adjacent (non-overlapping) bookings.
+1. **Correctly handling adjacent segments:** The overlap formula `MAX(S₁,S₂) < MIN(E₁,E₂)` relies on strict inequality. Getting this right was critical  an off-by-one or using `<=` would either accidentally allow double-booking or incorrectly block adjacent (non-overlapping) bookings.
 2. **Seeder idempotency in Docker:** The seeder runs automatically on boot. Using `ON CONFLICT DO UPDATE` (upsert) ensured re-running the docker containers doesn't create duplicate stations or seats, keeping the development loop robust.
 3. **Go module pathing:** Setting up the multi-stage Docker build to maximize layer caching meant ensuring `go mod download` paths were completely consistent across all files.
 
