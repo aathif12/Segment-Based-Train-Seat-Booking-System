@@ -193,7 +193,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                 <div className="form-group fade-up" style={{ animationDelay: '0.3s', marginBottom: 24 }}>
                   <label className="form-label" htmlFor="nlp-search">
                     <Sparkles size={13} style={{ display: 'inline', verticalAlign: 'text-bottom', marginRight: 4, color: 'var(--color-primary)' }} />
-                    {t('home.smartSearch')}
+                    Smart Search <span style={{ fontSize: '0.75rem', fontWeight: 'normal', color: 'var(--color-text-muted)' }}>(English Only)</span>
                   </label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <input
@@ -201,7 +201,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                       id="nlp-search"
                       className="form-input"
                       style={{ flex: 1 }}
-                      placeholder={t('home.smartSearchPlaceholder')}
+                      placeholder="e.g. 'I need a train from Colombo to Badulla tomorrow'"
                       value={nlpQuery}
                       onChange={e => setNlpQuery(e.target.value)}
                       onKeyDown={e => {
@@ -215,7 +215,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
                       disabled={isParsing || !nlpQuery.trim()}
                       style={{ whiteSpace: 'nowrap' }}
                     >
-                      {isParsing ? <div className="spinner" style={{ width: 18, height: 18 }} /> : t('home.magicSearchBtn')}
+                      {isParsing ? <div className="spinner" style={{ width: 18, height: 18 }} /> : 'Magic Search'}
                     </button>
                   </div>
                 </div>
