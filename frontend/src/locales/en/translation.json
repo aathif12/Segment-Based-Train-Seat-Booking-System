@@ -1,0 +1,43 @@
+{
+  "nav": {
+    "bookTickets": "Book Tickets",
+    "inquiries": "Inquiries",
+    "myBookings": "My Bookings",
+    "login": "Login",
+    "register": "Register",
+    "admin": "Admin",
+    "logout": "Logout"
+  },
+  "home": {
+    "routeInfo": "Colombo Fort - Badulla Scenic Line",
+    "heroTitle": "Book Your Seat,<br />Pay for Your Journey",
+    "heroSubtitle": "Segment-based reserved seating - one physical seat, multiple passengers, each paying only for the distance they actually travel.",
+    "findTrains": "Find Trains",
+    "smartSearch": "Smart Search",
+    "smartSearchPlaceholder": "e.g. 'I need a train from Colombo to Badulla tomorrow'",
+    "magicSearchBtn": "Magic Search",
+    "orManualSearch": "OR MANUAL SEARCH",
+    "from": "From",
+    "to": "To",
+    "date": "Date",
+    "searchTrains": "Search Trains",
+    "searching": "Searching…",
+    "availableTrains": "Available Trains",
+    "trainsFound_one": "{{count}} train found - select one to view seat availability",
+    "trainsFound_other": "{{count}} trains found - select one to view seat availability"
+  },
+  "auth": {
+    "loginTitle": "Welcome Back",
+    "registerTitle": "Create an Account",
+    "loginSubtitle": "Sign in to manage your bookings and view active trips.",
+    "registerSubtitle": "Join LFS Railway to book segmented journeys seamlessly.",
+    "name": "Full Name",
+    "email": "Email Address",
+    "nic": "NIC / Passport Number",
+    "password": "Password",
+    "loginBtn": "Sign In",
+    "registerBtn": "Create Account",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?"
+  }
+}
