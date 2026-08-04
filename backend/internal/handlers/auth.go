@@ -82,6 +82,8 @@ func (h *AuthHandler) Register(c *gin.Context) {
 			"id":    user.ID,
 			"name":  user.Name,
 			"email": user.Email,
+			"phone": user.Phone,
+			"nic":   user.NIC,
 		},
 	})
 }
@@ -127,6 +129,82 @@ func (h *AuthHandler) Login(c *gin.Context) {
 			"id":    user.ID,
 			"name":  user.Name,
 			"email": user.Email,
+			"phone": user.Phone,
+			"nic":   user.NIC,
 		},
+	})
+}
+
+// GetMe returns the authenticated user's profile.
+// GET /api/user/me
+func (h *AuthHandler) GetMe(c *gin.Context) {
+	uid, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var user models.User
+	if err := h.db.First(&user, uid).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"id":    user.ID,
+			"name":  user.Name,
+			"email": user.Email,
+			"phone": user.Phone,
+			"nic":   user.NIC,
+		},
+	})
+}
+
+type UpdateProfileRequest struct {
+	Name  string `json:"name" binding:"required"`
+	Phone string `json:"phone"`
+	NIC   string `json:"nic"`
+}
+
+// UpdateMe updates the authenticated user's profile.
+// PUT /api/user/me
+func (h *AuthHandler) UpdateMe(c *gin.Context) {
+	uid, exists := c.Get("user_id")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	var req UpdateProfileRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	var user models.User
+	if err := h.db.First(&user, uid).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "user not found"})
+		return
+	}
+
+	user.Name = req.Name
+	user.Phone = req.Phone
+	user.NIC = req.NIC
+
+	if err := h.db.Save(&user).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to update profile"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"data": gin.H{
+			"id":    user.ID,
+			"name":  user.Name,
+			"email": user.Email,
+			"phone": user.Phone,
+			"nic":   user.NIC,
+		},
+		"message": "Profile updated successfully",
 	})
 }

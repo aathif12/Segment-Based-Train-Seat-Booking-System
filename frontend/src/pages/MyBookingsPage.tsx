@@ -26,7 +26,7 @@ const MyBookingsPage: React.FC<MyBookingsPageProps> = ({ addToast }) => {
       navigate('/login')
       return
     }
-    loadBookings()
+    loadData()
   }, [user])
 
   const loadData = async () => {

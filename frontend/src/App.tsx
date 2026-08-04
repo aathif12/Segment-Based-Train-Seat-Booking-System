@@ -5,6 +5,7 @@ import AdminPage from './pages/AdminPage'
 import AuthPage from './pages/AuthPage'
 import MyBookingsPage from './pages/MyBookingsPage'
 import InquiriesPage from './pages/InquiriesPage'
+import ProfilePage from './pages/ProfilePage'
 import { useToast, ToastContainer } from './components/Toast'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { LogOut, User } from 'lucide-react'
@@ -41,6 +42,9 @@ const NavBar: React.FC = () => {
             <>
               <NavLink to="/my-bookings" className={({ isActive }) => `navbar-link${isActive ? ' active' : ''}`}>
                 {t('nav.myBookings')}
+              </NavLink>
+              <NavLink to="/profile" className={({ isActive }) => `navbar-link${isActive ? ' active' : ''}`}>
+                My Profile
               </NavLink>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginLeft: 16, paddingLeft: 16, borderLeft: '1px solid rgba(0,0,0,0.1)' }}>
                 <span style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)' }}><User size={14} style={{ display: 'inline', marginRight: 4 }} />{user.name}</span>
@@ -92,9 +96,32 @@ const App: React.FC = () => {
         <Route path="/register" element={<AuthPage addToast={addToast} isRegister />} />
         <Route path="/my-bookings" element={<MyBookingsPage addToast={addToast} />} />
         <Route path="/inquiries" element={<InquiriesPage />} />
+        <Route path="/profile" element={
+          <AuthProfileWrapper addToast={addToast} />
+        } />
       </Routes>
       <ToastContainer toasts={toasts} />
     </AuthProvider>
+  )
+}
+
+const AuthProfileWrapper = ({ addToast }: { addToast: any }) => {
+  const { user, updateUser, logout } = useAuth()
+  const navigate = useNavigate()
+  
+  if (!user) {
+    navigate('/login')
+    return null
+  }
+
+  return (
+    <ProfilePage 
+      user={user} 
+      addToast={addToast} 
+      updateUser={updateUser} 
+      onNavigateHome={() => navigate('/')} 
+      onLogout={() => { logout(); navigate('/') }} 
+    />
   )
 }
 

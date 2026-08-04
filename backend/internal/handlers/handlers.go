@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -120,6 +121,39 @@ func (h *BookingHandler) CreateBooking(c *gin.Context) {
 	c.JSON(http.StatusCreated, gin.H{
 		"data":    booking,
 		"message": "Booking confirmed successfully",
+	})
+}
+
+// BulkCreateBookings handles a new bulk booking request for multiple seats.
+// POST /api/bookings/bulk
+func (h *BookingHandler) BulkCreateBookings(c *gin.Context) {
+	var req services.BulkBookingRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if uid, exists := c.Get("user_id"); exists {
+		userID := uid.(uint)
+		req.UserID = &userID
+	}
+
+	bookings, err := h.svc.BulkBook(req)
+	if err != nil {
+		if errors.Is(err, services.ErrSegmentConflict) {
+			c.JSON(http.StatusConflict, gin.H{
+				"error": "One or more requested seats are already booked for an overlapping segment. Please choose different seats.",
+				"code":  "SEGMENT_CONFLICT",
+			})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"data":    bookings,
+		"message": fmt.Sprintf("%d seats booked successfully", len(bookings)),
 	})
 }
 

@@ -97,6 +97,8 @@ export interface User {
   id: number
   name: string
   email: string
+  phone?: string
+  nic?: string
 }
 
 export interface AuthResponse {
@@ -106,6 +108,18 @@ export interface AuthResponse {
 
 export interface BookingRequest {
   seat_id: number
+  passenger_name: string
+  passenger_email: string
+  passenger_phone: string
+  passenger_nic: string
+  travel_date: string
+  start_station_id: number
+  end_station_id: number
+  train_schedule_id: number
+}
+
+export interface BulkBookingRequest {
+  seat_ids: number[]
   passenger_name: string
   passenger_email: string
   passenger_phone: string
@@ -187,6 +201,9 @@ export const fetchAvailableSeats = (fromOrder: number, toOrder: number, date: st
 export const createBooking = (req: BookingRequest) =>
   api.post<{ data: Booking; message: string }>('/bookings', req).then(r => r.data)
 
+export const bulkCreateBookings = (req: BulkBookingRequest) =>
+  api.post<{ data: Booking[]; message: string }>('/bookings/bulk', req).then(r => r.data)
+
 export const requestBookingChange = (id: number, action: 'refund' | 'reschedule', requestedDate?: string) =>
   api.post<{ message: string }>(`/user/bookings/${id}/request`, { action, requested_date: requestedDate }).then(r => r.data)
 
@@ -202,6 +219,12 @@ export const registerUser = (data: any) =>
 
 export const loginUser = (data: any) => 
   api.post<AuthResponse>('/auth/login', data).then(r => r.data)
+
+export const fetchMyProfile = () =>
+  api.get<{ data: User }>('/user/me').then(r => r.data.data)
+
+export const updateMyProfile = (data: { name: string, phone: string, nic: string }) =>
+  api.put<{ data: User; message: string }>('/user/me', data).then(r => r.data)
 
 export const fetchUserBookings = () => 
   api.get<{ data: Booking[] }>('/user/bookings').then(r => r.data.data)

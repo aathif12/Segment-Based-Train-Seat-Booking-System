@@ -47,6 +47,20 @@ type BookingRequest struct {
 	UserID          *uint  `json:"-"`
 }
 
+// BulkBookingRequest carries the input data for booking multiple seats at once.
+type BulkBookingRequest struct {
+	SeatIDs         []uint `json:"seat_ids" binding:"required,min=1"`
+	PassengerName   string `json:"passenger_name" binding:"required,min=2,max=150"`
+	PassengerEmail  string `json:"passenger_email" binding:"required,email"`
+	PassengerPhone  string `json:"passenger_phone" binding:"required,min=10,max=15"`
+	PassengerNIC    string `json:"passenger_nic" binding:"required,min=10,max=12"`
+	TravelDate      string `json:"travel_date" binding:"required"`
+	StartStationID  uint   `json:"start_station_id" binding:"required"`
+	EndStationID    uint   `json:"end_station_id" binding:"required"`
+	TrainScheduleID uint   `json:"train_schedule_id" binding:"required"`
+	UserID          *uint  `json:"-"`
+}
+
 // AvailabilityResult holds a seat with its availability flag for a given segment.
 type AvailabilityResult struct {
 	models.Seat
@@ -205,6 +219,111 @@ func (s *BookingService) Book(req BookingRequest) (*models.Booking, error) {
 	}
 
 	return booking, nil
+}
+
+// BulkBook creates bookings for multiple seats in a single atomic transaction.
+func (s *BookingService) BulkBook(req BulkBookingRequest) ([]*models.Booking, error) {
+	var bookings []*models.Booking
+
+	err := s.db.Transaction(func(tx *gorm.DB) error {
+		// Fetch stations
+		var startStation, endStation models.Station
+		if err := tx.First(&startStation, req.StartStationID).Error; err != nil {
+			return fmt.Errorf("start station not found: %w", err)
+		}
+		if err := tx.First(&endStation, req.EndStationID).Error; err != nil {
+			return fmt.Errorf("end station not found: %w", err)
+		}
+		if startStation.OrderInRoute >= endStation.OrderInRoute {
+			return errors.New("start station must be before end station on the route")
+		}
+
+		var sched models.TrainSchedule
+		if err := tx.First(&sched, req.TrainScheduleID).Error; err != nil {
+			return fmt.Errorf("train schedule not found: %w", err)
+		}
+		if isPastDeparture(req.TravelDate, sched.DepartureTime) {
+			return errors.New("cannot book seats after the train has departed")
+		}
+
+		// Sort seat IDs to prevent deadlocks when locking multiple rows
+		// (though in this case they are passed from UI, sorting is safer for DB locks)
+		// But since Postgres locks rows in the order they are fetched, we can use an IN query with ORDER BY
+		var seats []models.Seat
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Preload("Coach").
+			Where("id IN ?", req.SeatIDs).
+			Order("id ASC").
+			Find(&seats).Error; err != nil {
+			return fmt.Errorf("lock seats: %w", err)
+		}
+
+		if len(seats) != len(req.SeatIDs) {
+			return errors.New("one or more requested seats could not be found")
+		}
+
+		for _, seat := range seats {
+			if seat.Coach.Type != models.CoachTypeReserved {
+				return errors.New("only reserved coach seats can be booked")
+			}
+
+			// Check for conflicts
+			var conflictCount int64
+			tx.Model(&models.Booking{}).
+				Where(`seat_id = ? AND travel_date = ? AND train_schedule_id = ? AND status = ? AND start_station_order < ? AND end_station_order > ?`,
+					seat.ID, req.TravelDate, req.TrainScheduleID, models.BookingStatusConfirmed, endStation.OrderInRoute, startStation.OrderInRoute).
+				Count(&conflictCount)
+
+			if conflictCount > 0 {
+				return ErrSegmentConflict
+			}
+
+			fare := s.fareService.Calculate(startStation, endStation, seat, seat.Coach)
+
+			booking := &models.Booking{
+				SeatID:            seat.ID,
+				UserID:            req.UserID,
+				PassengerName:     req.PassengerName,
+				PassengerEmail:    req.PassengerEmail,
+				PassengerPhone:    req.PassengerPhone,
+				PassengerNIC:      req.PassengerNIC,
+				TravelDate:        req.TravelDate,
+				StartStationOrder: startStation.OrderInRoute,
+				EndStationOrder:   endStation.OrderInRoute,
+				StartStationID:    startStation.ID,
+				EndStationID:      endStation.ID,
+				TrainScheduleID:   req.TrainScheduleID,
+				Fare:              fare,
+				Status:            models.BookingStatusConfirmed,
+			}
+
+			if err := tx.Create(booking).Error; err != nil {
+				return fmt.Errorf("create booking: %w", err)
+			}
+
+			bookings = append(bookings, booking)
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// Preload and send emails
+	for _, b := range bookings {
+		s.db.Preload("Seat.Coach").Preload("StartStation").Preload("EndStation").First(b, b.ID)
+		if s.emailSvc != nil {
+			go func(bk *models.Booking) {
+				if err := s.emailSvc.SendBookingConfirmation(bk); err != nil {
+					log.Printf("Failed to send confirmation email for booking #%d: %v", bk.ID, err)
+				}
+			}(b)
+		}
+	}
+
+	return bookings, nil
 }
 
 // RequestChange requests a refund or reschedule for a booking.

@@ -40,7 +40,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
   // ── Seat state ──────────────────────────────────────────────────
   const [seats, setSeats]                   = useState<AvailableSeat[]>([])
   const [loadingSeats, setLoadingSeats]     = useState(false)
-  const [selectedSeat, setSelectedSeat]     = useState<AvailableSeat | null>(null)
+  const [selectedSeats, setSelectedSeats]   = useState<AvailableSeat[]>([])
 
   // Load stations once
   useEffect(() => {
@@ -98,6 +98,7 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
     setSearched(true)
     setSelectedTrain(null)
     setSeats([])
+    setSelectedSeats([])
     setSelectedSeat(null)
     setScheduleError(null)
     setLoadingSchedules(true)
@@ -120,34 +121,37 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
     }
   }
 
-  // ── Step 2: Select train → fetch seats ─────────────────────────
+  // ── Step 2: User picks a train ──────────────────────────────────
   const handleTrainSelect = async (train: TrainSchedule) => {
     setSelectedTrain(train)
-    setSeats([])
-    setSelectedSeat(null)
+    setSelectedSeats([])
     setLoadingSeats(true)
-
     try {
-      if (!fromStation || !toStation) return
-      const data = await fetchAvailableSeats(fromStation.order_in_route, toStation.order_in_route, travelDate, train.id)
-      setSeats(data)
-      if (data.filter(s => s.is_available).length === 0) {
-        addToast('No seats available - try waitlist after selecting a seat', 'info')
-      }
+      const s = await fetchAvailableSeats(fromStation!.order_in_route, toStation!.order_in_route, travelDate, train.id)
+      setSeats(s)
     } catch {
-      addToast('Failed to fetch seat availability', 'error')
+      addToast('Failed to load seat availability', 'error')
     } finally {
       setLoadingSeats(false)
-      setTimeout(() => {
-        document.getElementById('seatmap-section')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-      }, 150)
     }
+  }
+
+  const handleSeatSelect = (seat: AvailableSeat) => {
+    if (!seat.is_available) return // Can't toggle booked seats
+
+    setSelectedSeats(prev => {
+      const isAlreadySelected = prev.some(s => s.id === seat.id)
+      if (isAlreadySelected) {
+        return prev.filter(s => s.id !== seat.id)
+      } else {
+        return [...prev, seat]
+      }
+    })
   }
 
   const handleBookingSuccess = () => {
     if (fromStation && toStation && selectedTrain) {
-      fetchAvailableSeats(fromStation.order_in_route, toStation.order_in_route, travelDate, selectedTrain.id)
-        .then(setSeats)
+      handleTrainSelect(selectedTrain)
       // Also refresh schedules to reflect updated seat count
       fetchTrainSchedules(travelDate).then(setSchedules).catch(() => {})
     }
@@ -430,23 +434,42 @@ const HomePage: React.FC<HomePageProps> = ({ addToast }) => {
             ) : (
               <SeatMap
                 seats={seats}
-                selectedSeatId={selectedSeat?.id ?? null}
-                onSelect={seat => setSelectedSeat(seat)}
+                selectedSeatIds={selectedSeats.map(s => s.id)}
+                onSelect={handleSeatSelect}
               />
+            )}
+            
+            {selectedSeats.length > 0 && (
+              <div className="booking-footer slide-up fade-up">
+                <div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)', marginBottom: 4 }}>
+                    {selectedSeats.length} Seat{selectedSeats.length > 1 ? 's' : ''} Selected
+                  </div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 600 }}>
+                    {selectedSeats.map(s => `Coach ${s.coach.name} - ${s.seat_number}`).join(', ')}
+                  </div>
+                </div>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => document.getElementById('booking-modal')?.classList.add('open')}
+                >
+                  <CheckCircle2 size={18} /> Continue to Booking
+                </button>
+              </div>
             )}
           </div>
         </section>
       )}
 
       {/* ── Booking Modal ─────────────────────────────────────────── */}
-      {selectedSeat && fromStation && toStation && selectedTrain && (
+      {selectedSeats.length > 0 && fromStation && toStation && selectedTrain && (
         <BookingModal
-          seat={selectedSeat}
+          selectedSeats={selectedSeats}
           fromStation={fromStation}
           toStation={toStation}
           travelDate={travelDate}
           trainScheduleId={selectedTrain.id}
-          onClose={() => setSelectedSeat(null)}
+          onClose={() => document.getElementById('booking-modal')?.classList.remove('open')}
           onSuccess={handleBookingSuccess}
           addToast={addToast}
         />

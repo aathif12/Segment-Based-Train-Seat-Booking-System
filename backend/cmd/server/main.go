@@ -78,6 +78,7 @@ func main() {
 		bookings.Use(middleware.OptionalAuthMiddleware())
 		{
 			bookings.POST("", bookingHandler.CreateBooking)
+			bookings.POST("/bulk", bookingHandler.BulkCreateBookings)
 			bookings.POST("/waitlist", bookingHandler.AddToWaitlist)
 		}
 		
@@ -87,6 +88,8 @@ func main() {
 		user := api.Group("/user")
 		user.Use(middleware.AuthMiddleware())
 		{
+			user.GET("/me", authHandler.GetMe)
+			user.PUT("/me", authHandler.UpdateMe)
 			user.GET("/bookings", bookingHandler.GetUserBookings)
 			user.POST("/bookings/:id/request", bookingHandler.RequestChange) // User request refund/reschedule
 			user.GET("/inquiries", inquiryHandler.GetUserInquiries)

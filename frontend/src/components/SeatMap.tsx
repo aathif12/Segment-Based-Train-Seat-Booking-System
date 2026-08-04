@@ -4,12 +4,12 @@ import type { AvailableSeat } from '../api/client'
 
 interface SeatMapProps {
   seats: AvailableSeat[]
-  selectedSeatId: number | null
+  selectedSeatIds: number[]
   onSelect: (seat: AvailableSeat) => void
 }
 
 // Groups seats by coach name for the tab + grid layout.
-const SeatMap: React.FC<SeatMapProps> = ({ seats, selectedSeatId, onSelect }) => {
+const SeatMap: React.FC<SeatMapProps> = ({ seats, selectedSeatIds, onSelect }) => {
   const [activeCoach, setActiveCoach] = React.useState<string | null>(null)
 
   const coachGroups = useMemo(() => {
@@ -98,7 +98,7 @@ const SeatMap: React.FC<SeatMapProps> = ({ seats, selectedSeatId, onSelect }) =>
           {currentSeats
             .sort((a, b) => parseInt(a.seat_number) - parseInt(b.seat_number))
             .map(seat => {
-              const isSelected = seat.id === selectedSeatId
+              const isSelected = selectedSeatIds.includes(seat.id)
               const cls = seat.is_available
                 ? isSelected ? 'seat-cell available selected' : 'seat-cell available'
                 : 'seat-cell booked'

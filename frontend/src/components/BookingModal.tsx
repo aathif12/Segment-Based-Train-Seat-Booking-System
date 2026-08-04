@@ -1,13 +1,13 @@
 import React, { useState } from 'react'
 import { CheckCircle2, Ticket, LogIn, AlertTriangle } from 'lucide-react'
-import type { AvailableSeat, BookingRequest, Station } from '../api/client'
-import { createBooking, addToWaitlist } from '../api/client'
+import type { AvailableSeat, BookingRequest, BulkBookingRequest, Station } from '../api/client'
+import { createBooking, bulkCreateBookings, addToWaitlist } from '../api/client'
 import { useAuth } from '../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import type { ToastType } from './Toast'
 
 interface BookingModalProps {
-  seat: AvailableSeat
+  selectedSeats: AvailableSeat[]
   fromStation: Station
   toStation: Station
   travelDate: string
@@ -18,17 +18,21 @@ interface BookingModalProps {
 }
 
 const BookingModal: React.FC<BookingModalProps> = ({
-  seat, fromStation, toStation, travelDate, trainScheduleId, onClose, onSuccess, addToast
+  selectedSeats, fromStation, toStation, travelDate, trainScheduleId, onClose, onSuccess, addToast
 }) => {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [name, setName] = useState(user?.name || '')
   const [email, setEmail] = useState(user?.email || '')
-  const [phone, setPhone] = useState('')
-  const [nic, setNic] = useState('')
+  const [phone, setPhone] = useState(user?.phone || '')
+  const [nic, setNic] = useState(user?.nic || '')
   const [loading, setLoading] = useState(false)
   const [confirmed, setConfirmed] = useState(false)
-  const [bookingId, setBookingId] = useState<number | null>(null)
+  const [bookingCount, setBookingCount] = useState<number>(0)
+
+  const totalFare = selectedSeats.reduce((sum, s) => sum + s.fare, 0)
+  const allAvailable = selectedSeats.every(s => s.is_available)
+  const anyAvailable = selectedSeats.some(s => s.is_available)
 
   const handleBook = async () => {
     if (!name.trim() || !email.trim() || !phone.trim() || !nic.trim()) {
@@ -38,8 +42,9 @@ const BookingModal: React.FC<BookingModalProps> = ({
 
     setLoading(true)
     try {
-      const req: BookingRequest = {
-        seat_id: seat.id,
+      const availableSeatsToBook = selectedSeats.filter(s => s.is_available)
+      const req: BulkBookingRequest = {
+        seat_ids: availableSeatsToBook.map(s => s.id),
         passenger_name: name.trim(),
         passenger_email: email.trim(),
         passenger_phone: phone.trim(),
@@ -49,16 +54,16 @@ const BookingModal: React.FC<BookingModalProps> = ({
         end_station_id: toStation.id,
         train_schedule_id: trainScheduleId,
       }
-      const result = await createBooking(req)
-      setBookingId(result.data.id)
+      const result = await bulkCreateBookings(req)
+      setBookingCount(result.data.length)
       setConfirmed(true)
-      addToast('Booking confirmed!', 'success')
+      addToast('Bookings confirmed!', 'success')
     } catch (err: any) {
       const code = err?.response?.data?.code
       const message = err?.response?.data?.error ?? 'Booking failed. Please try again.'
 
       if (code === 'SEGMENT_CONFLICT') {
-        addToast('This seat was just booked by someone else. Please choose another.', 'error')
+        addToast('One or more seats were just booked by someone else. Please choose another.', 'error')
         onSuccess() // Refresh availability
         onClose()
       } else {
@@ -82,22 +87,26 @@ const BookingModal: React.FC<BookingModalProps> = ({
     }
     setLoading(true)
     try {
-      const req: BookingRequest = {
-        seat_id: seat.id,
-        passenger_name: name.trim(),
-        passenger_email: email.trim(),
-        passenger_phone: phone.trim(),
-        passenger_nic: nic.trim(),
-        travel_date: travelDate,
-        start_station_id: fromStation.id,
-        end_station_id: toStation.id,
-        train_schedule_id: trainScheduleId,
+      for (const seat of selectedSeats) {
+        if (!seat.is_available) {
+          const req: BookingRequest = {
+            seat_id: seat.id,
+            passenger_name: name.trim(),
+            passenger_email: email.trim(),
+            passenger_phone: phone.trim(),
+            passenger_nic: nic.trim(),
+            travel_date: travelDate,
+            start_station_id: fromStation.id,
+            end_station_id: toStation.id,
+            train_schedule_id: trainScheduleId,
+          }
+          await addToWaitlist(req)
+        }
       }
-      await addToWaitlist(req)
       addToast("You've been added to the waitlist!", 'info')
       onClose()
     } catch {
-      addToast('Failed to join waitlist', 'error')
+      addToast('Failed to join waitlist for one or more seats', 'error')
     } finally {
       setLoading(false)
     }
@@ -116,7 +125,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
             </div>
             <h2 style={{ marginBottom: 8 }}>You're all set!</h2>
             <p style={{ color: 'var(--color-text-muted)', marginBottom: 20 }}>
-              Your seat is confirmed. Booking reference #{bookingId}.
+              Your {bookingCount} seat{bookingCount > 1 ? 's are' : ' is'} confirmed. You can manage them in "My Bookings".
             </p>
             <div className="fare-breakdown" style={{ textAlign: 'left' }}>
               <div className="fare-row">
@@ -128,12 +137,12 @@ const BookingModal: React.FC<BookingModalProps> = ({
                 <span>{fromStation.name} → {toStation.name}</span>
               </div>
               <div className="fare-row">
-                <span className="label">Coach / Seat</span>
-                <span>Coach {seat.coach.name}, Seat {seat.seat_number}</span>
+                <span className="label">Seats</span>
+                <span>{selectedSeats.map(s => `Coach ${s.coach.name} - ${s.seat_number}`).join(', ')}</span>
               </div>
               <div className="fare-row total">
                 <span>Total Fare</span>
-                <span>LKR {seat.fare.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                <span>LKR {totalFare.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
             <button className="btn btn-primary btn-full" onClick={() => { onSuccess(); onClose(); }}>
@@ -144,10 +153,10 @@ const BookingModal: React.FC<BookingModalProps> = ({
           // ── Booking Form View ──────────────────────────────────────────
           <>
             <h2 style={{ marginBottom: 4 }}>
-              {seat.is_available ? 'Book Your Seat' : 'Join the Waitlist'}
+              {allAvailable ? (selectedSeats.length > 1 ? 'Book Your Seats' : 'Book Your Seat') : 'Join the Waitlist'}
             </h2>
             <p style={{ color: 'var(--color-text-muted)', marginBottom: !user ? 12 : 24, fontSize: '0.9rem' }}>
-              Coach {seat.coach.name}, Seat {seat.seat_number}
+              {selectedSeats.map(s => `Coach ${s.coach.name}, Seat ${s.seat_number}`).join(' | ')}
             </p>
 
             {/* Login warning - only shown to guests */}
@@ -183,7 +192,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
               </div>
             )}
 
-            {!seat.is_available && user && (
+            {!allAvailable && user && (
               <div style={{
                 background: 'rgba(242,153,74,0.1)',
                 border: '1px solid rgba(242,153,74,0.3)',
@@ -196,7 +205,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
               }}>
                 <AlertTriangle size={16} style={{ color: '#F2994A', flexShrink: 0, marginTop: 2 }} />
                 <div style={{ fontSize: '0.85rem', color: '#F2994A', lineHeight: 1.5 }}>
-                  <strong>This seat is currently booked.</strong> Fill out your details below to join the waitlist. We'll automatically book it for you if it becomes available.
+                  <strong>Some selected seats are currently booked.</strong> Fill out your details below to join the waitlist. We'll automatically book them for you if they become available.
                 </div>
               </div>
             )}
@@ -216,8 +225,8 @@ const BookingModal: React.FC<BookingModalProps> = ({
                 <span>~{Math.abs(toStation.distance_km - fromStation.distance_km)} km</span>
               </div>
               <div className="fare-row total">
-                <span>Fare</span>
-                <span>LKR {seat.fare.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                <span>Total Fare</span>
+                <span>LKR {totalFare.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
               </div>
             </div>
 
@@ -276,7 +285,7 @@ const BookingModal: React.FC<BookingModalProps> = ({
             </div>
 
             <div style={{ display: 'flex', gap: 12 }}>
-              {seat.is_available && (
+              {anyAvailable && (
                 <button
                   id="btn-confirm-booking"
                   className="btn btn-primary"
@@ -284,19 +293,21 @@ const BookingModal: React.FC<BookingModalProps> = ({
                   onClick={handleBook}
                   disabled={loading}
                 >
-                  {loading ? <><div className="spinner" style={{ width: 18, height: 18 }} /> Booking…</> : <><Ticket size={18} /> Confirm Booking</>}
+                  {loading ? <><div className="spinner" style={{ width: 18, height: 18 }} /> Booking…</> : <><Ticket size={18} /> Confirm {allAvailable ? 'Booking' : 'Available Seats'}</>}
                 </button>
               )}
-              <button
-                id="btn-join-waitlist"
-                className={seat.is_available ? "btn btn-secondary btn-sm" : "btn btn-primary"}
-                onClick={handleWaitlist}
-                disabled={loading}
-                title={user ? 'Join the waitlist if this seat gets booked before you' : 'Login required to join waitlist'}
-                style={Object.assign({ flex: seat.is_available ? undefined : 1 }, !user ? { opacity: 0.6 } : undefined)}
-              >
-                {!user ? <><LogIn size={14} style={{ marginRight: 4 }} /> Login to Waitlist</> : (seat.is_available ? 'Waitlist' : 'Join Waitlist')}
-              </button>
+              {!allAvailable && (
+                <button
+                  id="btn-join-waitlist"
+                  className={anyAvailable ? "btn btn-secondary btn-sm" : "btn btn-primary"}
+                  onClick={handleWaitlist}
+                  disabled={loading}
+                  title={user ? 'Join the waitlist for the booked seats' : 'Login required to join waitlist'}
+                  style={Object.assign({ flex: anyAvailable ? undefined : 1 }, !user ? { opacity: 0.6 } : undefined)}
+                >
+                  {!user ? <><LogIn size={14} style={{ marginRight: 4 }} /> Login to Waitlist</> : (anyAvailable ? 'Waitlist Remaining' : 'Join Waitlist')}
+                </button>
+              )}
             </div>
           </>
         )}
