@@ -23,6 +23,7 @@ docker-compose up --build
 # 4. Open the app
 #    Frontend:  http://localhost:4000
 #    Backend:   http://localhost:8080/api
+#    Mailpit:   http://localhost:8025 (Local Email UI)
 ```
 
 On the first boot the `seeder` service runs automatically and populates:
@@ -83,6 +84,10 @@ This directly addresses the business problem: a passenger booking Colombo Fort â
 ### 6. Booking Conflict UX
 **Problem:** A seat can be taken while a user is filling out the booking form.
 **Solution:** `SEGMENT_CONFLICT` API errors surface a clear toast message and automatically refresh the seat map, giving the user immediate visual feedback to choose another seat.
+
+### 7. Email Notifications
+**Problem:** Users need reliable confirmation of their tickets and updates when waitlist statuses change.
+**Solution:** Integrated an SMTP service that sends HTML-formatted emails for booking confirmations, waitlist promotions, and cancellations. During local development, all outbound emails are caught by **Mailpit**, which provides a web UI at `http://localhost:8025` to safely inspect emails without sending them to real addresses.
 
 ---
 
