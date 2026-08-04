@@ -10,17 +10,13 @@
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/<your-username>/lfs-railway.git
-cd lfs-railway
+git clone https://github.com/aathif12/Segment-Based-Train-Seat-Booking-System.git
+cd Segment-Based-Train-Seat-Booking-System
 
-# 2. Create your environment file
-cp .env.example .env
-# Open .env and set a strong POSTGRES_PASSWORD
-
-# 3. Start everything (database, backend, seeder, frontend)
+# 2. Start everything in one shot (database, backend, seeder, frontend, mailpit)
 docker-compose up --build
 
-# 4. Open the app
+# 3. Open the app
 #    Frontend:  http://localhost:4000
 #    Backend:   http://localhost:8080/api
 #    Mailpit:   http://localhost:8025 (Local Email UI)
